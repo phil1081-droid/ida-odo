@@ -1,0 +1,104 @@
+html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    background: #222;
+    display: flex;
+    overflow: hidden;
+    align-items: center;
+    justify-content: center;
+    overscroll-behavior: none;
+}
+
+#gameFrame {
+    transform-origin: center center;
+    position: relative;
+    width: 390px;
+    height: 844px;
+    border-radius: 18px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+#gameArea {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+}
+
+#gameCanvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+#controls {
+    height: 140px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #333;
+    z-index: 50;
+}
+
+.btn {
+    width:80px;
+    height:80px;
+    margin:10px;
+    border-radius:50%;
+    border:none;
+    background:#ffcc00;
+    font-weight:bold;
+    font-size:20px;
+    box-shadow:0 4px #aa8800;
+}
+
+.btn:active {
+    box-shadow:none;
+    transform:translateY(4px);
+}
+
+#startOverlay {
+    position:absolute;
+    inset:0;
+    display:none;
+    align-items:center;
+    justify-content:center;
+    z-index:100;
+    background:rgba(0,0,0,0.45);
+    color:#fff;
+    text-align:center;
+    padding:20px;
+}
+
+#startOverlay button {
+    font-size:18px;
+    padding:12px 20px;
+    border-radius:10px;
+    border:none;
+    background:#ffcc00;
+    color:#000;
+}
+
+.pause-btn {
+    position: absolute;
+    top: 12px;
+    right: 20px;
+    width: 38px;
+    height: 38px;
+    border: none;
+    border-radius: 8px;
+    background: #ffcc00;
+    color: #000;
+    font-weight: bold;
+    font-size: 20px;
+    box-shadow: 0 3px #aa8800;
+    z-index: 100;
+    cursor: pointer;
+}
+
+.pause-btn:active {
+    box-shadow: none;
+    transform: translateY(2px);
+}

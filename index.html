@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="de">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no" />
+        <title>Ida Breuer & Odo 1XL</title>
+        <link rel="stylesheet" href="style.css" />
+        <style>
+          #gameFrame {
+              background-image: url("start_007.png");
+              background-size: contain;
+              background-repeat: no-repeat;
+              background-position: center;
+              background-color: #000;
+          }
+        </style>
+    </head>
+    <body>
+        <div id="gameFrame">
+            <div id="gameArea">
+                <canvas id="gameCanvas"></canvas>
+            </div>
+
+            <div id="controls">
+                <button class="btn" id="leftBtn">←</button>
+                <button class="btn" id="scoopBtn">🚀🧲</button>
+                <button class="btn" id="rightBtn">→</button>
+            </div>
+
+            <button id="pauseBtn" class="pause-btn">⏸</button>
+        </div>
+        
+        <div id="startOverlay" role="dialog" aria-modal="true">
+            <div>
+                <div style="margin-bottom:12px;font-weight:bold;font-family:Arial">Klicke / tippe / Taste drücken, um Audio zu aktivieren</div>
+                <div style="margin-bottom:12px;font-family:Arial">Musik & Sound werden danach automatisch abgespielt.</div>
+                <button id="startButton">Jetzt starten</button>
+                <br /><br /><br />
+                <div style="margin-bottom:12px;">In stillem Gedenken an Dietmar Keicher</div>
+            </div>
+        </div>
+        
+        <script src="start-screen.js"></script>
+        <script src="game-state.js"></script>
+        <script src="loader.js"></script>
+        <script src="sound.js"></script>
+        <script src="entity.js"></script>
+        <script src="falling-entity.js"></script>
+        <script src="overflow.js"></script>
+        <script src="lump.js"></script>
+        <script src="obstacle.js"></script>
+        <script src="ida.js"></script>
+        <script src="odo.js"></script>
+        <script src="input-manager.js"></script>
+        <script src="game-loop.js"></script>
+        <script src="highscore.js"></script>
+        <script src="main.js"></script>
+    </body>
+</html>

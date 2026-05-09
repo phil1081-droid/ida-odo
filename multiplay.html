@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport"
+      content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no" />
+
+<title>Ida Breuer & Odo 1XL – Multiplay</title>
+<link rel="stylesheet" href="style.css" />
+<style>
+  .gameHost {
+      background-image: url("start_007.png");
+      background-size: contain;
+      background-repeat: no-repeat;
+      background-position: center;
+      background-color: #000;
+  }
+
+  /* === NUR DER CONTAINER IST FLEX === */
+  html, body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      overscroll-behavior: none;
+      background: #111;
+  }
+
+  #multiGameContainer {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 24px;
+    min-height: 100vh;
+  }
+
+  /* WICHTIG: NICHTS hier drin skaliert */
+  .gameHost {
+    width: 390px;
+    height: 844px;
+  }
+    .gameWrapper.yellow .btn,
+    .gameWrapper.yellow #startOverlay button,
+    .gameWrapper.yellow .pause-btn {
+        background: linear-gradient(#ffd60a, #ffaa00);
+        box-shadow: 0 4px #cc8800;
+        color: #000;
+    }
+    .gameWrapper.yellow .btn:active,
+    .gameWrapper.yellow .pause-btn:active {
+        box-shadow: none;
+    }
+    
+    .gameWrapper.red .btn,
+    .gameWrapper.red #startOverlay button,
+    .gameWrapper.red .pause-btn {
+        background: linear-gradient(#e63946, #b5171f);
+        box-shadow: 0 4px #8b1d1d;
+        color: #fff;
+    }
+
+    .gameWrapper.red .btn:active,
+    .gameWrapper.red .pause-btn:active {
+        box-shadow: none;
+    }
+
+</style>
+</head>
+
+<body>
+    <div id="multiGameContainer">
+      <!-- ===== GAME 1 (Gelb) ===== -->
+      <div class="gameHost gameWrapper yellow">
+        <div id="gameFrame1">
+          <div id="gameArea1">
+            <canvas id="gameCanvas1" width="390" height="704"></canvas>
+          </div>
+          <div id="controls1">
+            <button class="btn" id="leftBtn1">←</button>
+            <button class="btn" id="scoopBtn1">🚀🧲</button>
+            <button class="btn" id="rightBtn1">→</button>
+          </div>
+          <button id="pauseBtn1" class="pause-btn">⏸</button>
+        </div>
+        <div id="startOverlay1">
+          <div>
+            <div style="margin-bottom:12px;font-weight:bold;font-family:Arial">
+              Klicke / tippe / Taste drücken, um Audio zu aktivieren
+            </div>
+            <button id="startButton1">Jetzt starten</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== GAME 2 (Rot) ===== -->
+      <div class="gameHost gameWrapper red">
+        <div id="gameFrame2">
+          <div id="gameArea2">
+            <canvas id="gameCanvas2" width="390" height="704"></canvas>
+          </div>
+          <div id="controls2">
+            <button class="btn" id="leftBtn2">←</button>
+            <button class="btn" id="scoopBtn2">🚀🧲</button>
+            <button class="btn" id="rightBtn2">→</button>
+          </div>
+          <button id="pauseBtn2" class="pause-btn">⏸</button>
+        </div>
+        <div id="startOverlay2">
+          <div>
+            <div style="margin-bottom:12px;font-weight:bold;font-family:Arial">
+              Klicke / tippe / Taste drücken, um Audio zu aktivieren
+            </div>
+            <button id="startButton2">Jetzt starten</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+<!-- SCRIPTS 1:1 wie Single -->
+<script src="start-screen.js"></script>
+<script src="game-state.js"></script>
+<script src="loader.js"></script>
+<script src="sound.js"></script>
+<script src="entity.js"></script>
+<script src="falling-entity.js"></script>
+<script src="overflow.js"></script>
+<script src="lump.js"></script>
+<script src="obstacle.js"></script>
+<script src="ida.js"></script>
+<script src="odo.js"></script>
+<script src="input-manager.js"></script>
+<script src="game-loop.js"></script>
+<script src="highscore.js"></script>
+<script src="main.js"></script>
+</body>
+</html>

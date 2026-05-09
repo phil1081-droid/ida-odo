@@ -1,0 +1,1614 @@
+<!DOCTYPE html>
+<html lang="de">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no" />
+        <title>Ida Breuer & Odo 1XL</title>
+        <style>
+            html,body { height:100%; margin:0; background:#222; display:flex; align-items:center; justify-content:center; transition:background 1s ease; }
+            #gameFrame { width:390px; height:844px; border-radius:18px; overflow:hidden; display:flex; flex-direction:column; box-shadow:0 20px 60px rgba(0,0,0,0.6); background:linear-gradient(#87CEEB,#B0E0E6); transform-origin:center center; }
+            #gameCanvas { flex:7; width:100%; height:70%; display:block; background:linear-gradient(to top,#7ec850,#b8e47b); }
+            #controls { flex:3; display:flex; align-items:center; justify-content:center; background:#333; }
+            .btn { width:80px; height:80px; margin:10px; border-radius:50%; border:none; background:#ffcc00; font-weight:bold; font-size:20px; box-shadow:0 4px #aa8800; }
+            .btn:active { box-shadow:none; transform:translateY(4px); }
+            #startOverlay { position:absolute; inset:0; display:none; align-items:center; justify-content:center; z-index:40; background:rgba(0,0,0,0.45); color:#fff; text-align:center; padding:20px; }
+            #startOverlay button { font-size:18px; padding:12px 20px; border-radius:10px; border:none; background:#ffcc00; color:#000; }
+            #debug { position: absolute; left:8px; top:8px; color:#fff; font:12px monospace; background: rgba(0,0,0,0.25); padding:6px 8px; border-radius:6px; display:none; z-index:50; }
+            .pause-btn {
+                position: absolute;
+                top: 12px;
+                right: 20px;
+                width: 38px;
+                height: 38px;
+                border: none;
+                border-radius: 8px;
+                background: #ffcc00;
+                color: #000;
+                font-weight: bold;
+                font-size: 20px;
+                box-shadow: 0 3px #aa8800;
+                z-index: 20;
+                cursor: pointer;
+            }
+            .pause-btn:active {
+                box-shadow: none;
+                transform: translateY(2px);
+            }
+        </style>
+    </head>
+    <body>
+        <div id="gameFrame">
+            <canvas id="gameCanvas" aria-label="Game canvas"></canvas>
+            <button id="pauseBtn" class="pause-btn">⏸</button>
+            <div id="controls">
+                <button class="btn" id="leftBtn">←</button>
+                <button class="btn" id="scoopBtn">🚀🧲</button>
+                <button class="btn" id="rightBtn">→</button>
+            </div>
+        </div>
+        
+        <div id="startOverlay" role="dialog" aria-modal="true">
+            <div>
+                <div style="margin-bottom:12px;font-weight:bold;font-family:Arial">Klicke / tippe / Taste drücken, um Audio zu aktivieren</div>
+                <div style="margin-bottom:12px;font-family:Arial">Musik & Sound werden danach automatisch abgespielt.</div>
+                <button id="startButton">Jetzt starten</button>
+                <br /><br /><br />
+                <div style="margin-bottom:12px;">In stillem Gedenken an Dietmar Keicher</div>
+            </div>
+        </div>
+        
+        <div id="debug"></div>
+        
+        <script>
+            /* -----------------------------
+             Stable fixed build, minimal & robust
+             - Put ida_sprites.png next to this file (optional)
+             - No changes to your audio algorithms (kept intact)
+             ----------------------------- */
+            
+            /* ---------- Config ---------- */
+            const ANIM_FPS = 10;           // animation frames per second
+            const FRAME_FALL_BASE = 2.2;   // base falling speed multiplier (tuned)
+            const LEVEL_SPEED_FACTOR = 1.1; // per level multiplier
+            const DEBUG = false;
+            
+            /* ---------- DOM & Canvas ---------- */
+            const frameEl = document.getElementById('gameFrame');
+            const canvas = document.getElementById('gameCanvas');
+            const ctx = canvas.getContext('2d');
+            const overlay = document.getElementById('startOverlay');
+            const startButton = document.getElementById('startButton');
+            const debugEl = document.getElementById('debug');
+            
+            function scaleFrame() {
+                const scale = Math.min(window.innerWidth / 390, window.innerHeight / 844);
+                frameEl.style.transform = `scale(${scale})`;
+            }
+            window.addEventListener('resize', () => { scaleFrame(); resizeCanvas(); });
+            scaleFrame();
+            
+            function resizeCanvas() {
+                const cssW = frameEl.clientWidth;
+                const cssH = Math.floor(frameEl.clientHeight * 0.7);
+                const ratio = window.devicePixelRatio || 1;
+                canvas.style.width = cssW + 'px';
+                canvas.style.height = cssH + 'px';
+                canvas.width = Math.floor(cssW * ratio);
+                canvas.height = Math.floor(cssH * ratio);
+                ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+            }
+            resizeCanvas();
+            
+            function cssWidth() { return parseFloat(getComputedStyle(canvas).width); }
+            function cssHeight() { return parseFloat(getComputedStyle(canvas).height); }
+            
+            /* ---------- Game state ---------- */
+            let ida = { x: 50, y: 0, w: 100, h: 100 };
+            let dir = 0;
+            let score = 0;
+            let earth = []; // {x,y,w,h,color,seen,prevY}
+            let boostActive = false;
+            let boostEndTime = 0;
+            let magnetActive = false;
+            let magnetEndTime = 0;
+            const magnetRange = 120;
+            const magnetPull = 2;
+            let level = 1;
+            let fallSpeedMultiplier = 1.0;
+            let bgColor = 'hsl(100 60% 50%)';
+            let nextLevelScore = 100;
+
+            // ---------- Odo globals ----------
+            // ==== Odo-Globale Variablen ====
+            let odoImg;
+            let odoFrames = [];
+            let odoRideFrames = [];
+            let odoFrameW = 0, odoFrameH = 0, odoTotalFrames = 0;
+            let odoRideFrameW = 0, odoRideFrameH = 0, odoRideTotalFrames = 0;
+            let odoRideFrameIndex = 0;
+            let odoGrabImg;
+            let odoGrabFrames = [];
+            let odoGrabFrameW, odoGrabFrameH, odoGrabTotalFrames;
+            let odoGrabFrameIndex = 0;
+            let odoGrabbing = false; // Zustand: Greifmodus aktiv
+            let odoActive = false;
+            let odo = null;
+            let odoRiding = false;
+            const ODO_WIDTH_MULTIPLIER = 2.0;     // "gemessen an der Breite" → doppelte Breite
+            const ODO_SPAWN_PER_BOLL = 0.05;      // einstellbar: Chance pro gespawnter Bollen (z.B. 0.01 = 1/100)
+
+            // ---------- MEGA PLATSCH (VARIANTE B) ------------
+            let megaPlatsch = {
+                active: false,
+                frame: 0,
+                x: 0,
+                y: 0,
+                speed: 7,
+                heightWeight: 0.2,
+                holdLevel: 0.13,
+                holdWeight: 1.2,
+                holdFrame: null,
+                holdReached: false
+            };
+
+            /* ───────────────────────────────
+             🎨 Background Image Handling
+             ─────────────────────────────── */
+            let bgImage = new Image();
+            let bgIndex = 1;
+            const bgPrefix = "bg_";
+            const bgExtension = ".jpg";
+            const maxBgImages = 24; // falls du später mehr hinzufügst, hier anpassen
+            bgImage.src = `${bgPrefix}${String(bgIndex).padStart(3, "0")}${bgExtension}`;
+            
+            /* ---------- Audio helpers (preserved) ---------- */
+            let audioCtx = null;
+            let bgmRunning = false;
+            let shuffleIntervalId = null;
+            let beatBaseStepsPerMinute = 300;
+            let bpmFactor = 1.0;
+            
+            // ===== Chroma-key tuning globals (editable via UI) =====
+            let CHROMA_MIN_G = 50;       // abs. green threshold (0..255) - lower = more permissive
+            let CHROMA_RATIO = 1.05;     // G must be > ratio * R and > ratio * B (1.05 = very permissive)
+            let CHROMA_SAT = 0.05;       // approx saturation threshold 0..1 (lower = more permissive)
+            let CHROMA_DOM_FACTOR = 2.0; // how fast alpha falls with dominance
+            let CHROMA_HARD_CUTOFF = 60; // dominance above this -> fully transparent
+            
+            
+            function ensureAudioContext() {
+                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                if (audioCtx.state === 'suspended') audioCtx.resume().catch(()=>{});
+                return audioCtx;
+            }
+            
+            function makeNoiseBuffer(dur=1) {
+                const ctxA = ensureAudioContext();
+                const sr = ctxA.sampleRate;
+                const buf = ctxA.createBuffer(1, Math.floor(sr * dur), sr);
+                const data = buf.getChannelData(0);
+                for (let i=0;i<data.length;i++) data[i] = Math.random()*2 - 1;
+                return buf;
+            }
+            
+            /* collect / boost / magnet sounds (kept as in your version) */
+            function playCollect() {
+                const ctxA = ensureAudioContext();
+                const now = ctxA.currentTime;
+                const osc = ctxA.createOscillator(); osc.type='square';
+                osc.frequency.setValueAtTime(1000, now); osc.frequency.exponentialRampToValueAtTime(1600, now+0.12);
+                const gain = ctxA.createGain(); gain.gain.setValueAtTime(0.22, now); gain.gain.exponentialRampToValueAtTime(0.001, now+0.16);
+                const sh = ctxA.createWaveShaper(); const curve = new Float32Array(256); for(let i=0;i<256;i++) curve[i]=Math.tanh((i-128)/32); sh.curve=curve;
+                osc.connect(sh).connect(gain).connect(ctxA.destination); osc.start(now); osc.stop(now+0.16);
+            }
+            
+            function playOdoCollect() {
+                const ctxA = ensureAudioContext();
+                const now = ctxA.currentTime;
+                const osc = ctxA.createOscillator(); osc.type='square';
+                osc.frequency.setValueAtTime(400, now); osc.frequency.exponentialRampToValueAtTime(1000, now+0.32);
+                const gain = ctxA.createGain(); gain.gain.setValueAtTime(0.22, now); gain.gain.exponentialRampToValueAtTime(0.001, now+0.36);
+                const sh = ctxA.createWaveShaper(); const curve = new Float32Array(256); for(let i=0;i<256;i++) curve[i]=Math.tanh((i-128)/32); sh.curve=curve;
+                osc.connect(sh).connect(gain).connect(ctxA.destination); osc.start(now); osc.stop(now+0.36);
+            }
+            
+            function playDropSound() {
+                const ctxA = ensureAudioContext();
+                const now = ctxA.currentTime;
+                const osc = ctxA.createOscillator(); osc.type='sawtooth';
+                osc.frequency.setValueAtTime(300, now); osc.frequency.exponentialRampToValueAtTime(120, now+0.10);
+                const gain = ctxA.createGain(); gain.gain.setValueAtTime(0.14, now); gain.gain.exponentialRampToValueAtTime(0.001, now+0.14);
+                const lp = ctxA.createBiquadFilter(); lp.type='lowpass'; lp.frequency.setValueAtTime(1800, now);
+                osc.connect(lp).connect(gain).connect(ctxA.destination); osc.start(now); osc.stop(now+0.14);
+            }
+            
+            function playBoostSound() {
+                const ctxA = ensureAudioContext();
+                const now = ctxA.currentTime;
+                const osc = ctxA.createOscillator(); osc.type='sawtooth';
+                osc.frequency.setValueAtTime(160, now); osc.frequency.exponentialRampToValueAtTime(480, now+0.18);
+                const gain = ctxA.createGain(); gain.gain.setValueAtTime(0.14, now); gain.gain.exponentialRampToValueAtTime(0.001, now+0.22);
+                const lp = ctxA.createBiquadFilter(); lp.type='lowpass'; lp.frequency.setValueAtTime(1800, now);
+                osc.connect(lp).connect(gain).connect(ctxA.destination); osc.start(now); osc.stop(now+0.22);
+            }
+            
+            function playMagnetSound() {
+                const ctxA = ensureAudioContext();
+                const now = ctxA.currentTime;
+                const oscA = ctxA.createOscillator(); oscA.type='triangle';
+                oscA.frequency.setValueAtTime(600, now); oscA.frequency.exponentialRampToValueAtTime(420, now+0.4);
+                const gainA = ctxA.createGain(); gainA.gain.setValueAtTime(0.08, now); gainA.gain.exponentialRampToValueAtTime(0.001, now+0.45);
+                oscA.connect(gainA).connect(ctxA.destination); oscA.start(now); oscA.stop(now+0.45);
+            }
+            
+            /* Shuffle beat (kept) */
+            let beatBase = beatBaseStepsPerMinute;
+            function startBgmShuffle(bpmSteps = beatBase) {
+                ensureAudioContext();
+                if (bgmRunning) return;
+                bgmRunning = true;
+                const stepDur = 30 / bpmSteps;
+                const totalSteps = 12;
+                let step = 0;
+                let nextTime = audioCtx.currentTime;
+                const scheduleAhead = 0.12;
+                function playKick(t) {
+                    const osc = audioCtx.createOscillator(); osc.type='square';
+                    osc.frequency.setValueAtTime(120,t); osc.frequency.exponentialRampToValueAtTime(45,t+0.12);
+                    const gain = audioCtx.createGain(); gain.gain.setValueAtTime(0.1,t); gain.gain.exponentialRampToValueAtTime(0.001,t+0.14);
+                    const sh = audioCtx.createWaveShaper(); const curve = new Float32Array(256); for(let i=0;i<256;i++) curve[i]=Math.tanh((i-128)/16); sh.curve=curve;
+                    osc.connect(sh).connect(gain).connect(audioCtx.destination); osc.start(t); osc.stop(t+0.14);
+                }
+                function playSnare(t) { const src = audioCtx.createBufferSource(); src.buffer = makeNoiseBuffer(0.2); const bp = audioCtx.createBiquadFilter(); bp.type='bandpass'; bp.frequency.setValueAtTime(1800,t); const gain = audioCtx.createGain(); gain.gain.setValueAtTime(0.5,t); gain.gain.exponentialRampToValueAtTime(0.001,t+0.1); src.connect(bp).connect(gain).connect(audioCtx.destination); src.start(t); src.stop(t+0.1); }
+                function playHat(t) { const src = audioCtx.createBufferSource(); src.buffer = makeNoiseBuffer(0.05); const hp = audioCtx.createBiquadFilter(); hp.type='highpass'; hp.frequency.setValueAtTime(2500,t); const gain = audioCtx.createGain(); gain.gain.setValueAtTime(0.18,t); gain.gain.exponentialRampToValueAtTime(0.001,t+0.05); src.connect(hp).connect(gain).connect(audioCtx.destination); src.start(t); src.stop(t+0.05); }
+                function scheduler() {
+                    while (nextTime < audioCtx.currentTime + scheduleAhead) {
+                        const pos = step % totalSteps;
+                        if (pos === 0) playKick(nextTime);
+                        if (pos === 6 && level < 20) playSnare(nextTime);
+                        if ((pos === 3 || pos === 5 || pos === 9 || pos === 11) && level < 10) playHat(nextTime);
+                        nextTime += stepDur;
+                        step++;
+                    }
+                }
+                shuffleIntervalId = setInterval(scheduler, 20);
+            }
+            function stopBgmShuffle() { if (!bgmRunning) return; bgmRunning = false; if (shuffleIntervalId) clearInterval(shuffleIntervalId); }
+            function restartShuffleBeat() { stopBgmShuffle(); const bpmSteps = Math.max(20, Math.floor(beatBase * bpmFactor)); startBgmShuffle(bpmSteps); }
+            
+            /* === IDA SPRITE === */
+            const idaImg = new Image();
+            idaImg.crossOrigin = "anonymous";
+            idaImg.src = "ida_sprites.png";
+            let preFrames = []; // offscreen canvases
+            let totalFrames = 0;
+            let framesPerRow = 0;
+            let frameW = 0, frameH = 0;
+            let animIndex = 0;
+            let lastAnimTS = 0;
+
+            // === BOLLEN SPRITE ===
+            let bollenImg = new Image();
+            bollenImg.crossOrigin = "anonymous";
+            bollenImg.src = "bollen_sprites.png";  // dein Sprite mit Erde
+            let bollenFrames = [];
+            let bollenFrameW = 0, bollenFrameH = 0, bollenFramesPerRow = 0;
+            let bollenTotalFrames = 0;
+            let bollenAnimIndex = 0;
+            let bollenLastAnimTS = performance.now();
+            
+            // === BOLLEN PLATSCH ===
+            let platschImg = new Image();
+            platschImg.src = "platsch_sprites.png";
+
+            let platschFrames = [];
+            let platschFrameW = 0, platschFrameH = 0, platschTotal = 0;
+
+            platschImg.onload = () => {
+                const cols = 8;
+                const rows = 15;
+
+                platschFrameW = Math.floor(platschImg.width / cols);
+                platschFrameH = Math.floor(platschImg.height / rows);
+                platschTotal = cols * rows;
+
+                const off = document.createElement("canvas");
+                const offctx = off.getContext("2d");
+                off.width = platschFrameW;
+                off.height = platschFrameH;
+
+                for (let r = 0; r < rows; r++) {
+                    for (let c = 0; c < cols; c++) {
+                        offctx.clearRect(0, 0, platschFrameW, platschFrameH);
+                        offctx.drawImage(platschImg,
+                            c * platschFrameW, r * platschFrameH,
+                            platschFrameW, platschFrameH,
+                            0, 0,
+                            platschFrameW, platschFrameH
+                        );
+
+                        // greenscreen entfernen
+                        const imgData = offctx.getImageData(0, 0, platschFrameW, platschFrameH);
+                        const data = imgData.data;
+                        for (let i = 0; i < data.length; i += 4) {
+                            const rVal = data[i];
+                            const gVal = data[i + 1];
+                            const bVal = data[i + 2];
+                            if (gVal > 80 && gVal > rVal * 1.2 && gVal > bVal * 1.2) data[i + 3] = 0;
+                        }
+                        offctx.putImageData(imgData, 0, 0);
+
+                        const frameCanvas = document.createElement("canvas");
+                        frameCanvas.width = platschFrameW;
+                        frameCanvas.height = platschFrameH;
+                        frameCanvas.getContext("2d").drawImage(off, 0, 0);
+
+                        platschFrames.push(frameCanvas);
+                    }
+                }
+
+                console.log("PLATSCH FRAMES GELADEN:", platschTotal);
+            };
+
+            /* ------ ODO ----------------- */
+            odoImg = new Image();
+            odoImg.src = "odo-fall_sprites.png";
+            odoImg.onload = () => {
+                const cols = 8;
+                const rows = 13;
+                odoFrameW = Math.floor(odoImg.width / cols);
+                odoFrameH = Math.floor(odoImg.height / rows);
+                odoTotalFrames = cols * rows;
+                
+                const offscreen = document.createElement('canvas');
+                offscreen.width = odoFrameW;
+                offscreen.height = odoFrameH;
+                const offctx = offscreen.getContext('2d');
+                
+                for (let r = 0; r < rows; r++) {
+                    for (let c = 0; c < cols; c++) {
+                        offctx.clearRect(0, 0, odoFrameW, odoFrameH);
+                        offctx.drawImage(odoImg, c * odoFrameW, r * odoFrameH, odoFrameW, odoFrameH, 0, 0, odoFrameW, odoFrameH);
+                        const imgData = offctx.getImageData(0, 0, odoFrameW, odoFrameH);
+                        const data = imgData.data;
+                        for (let i = 0; i < data.length; i += 4) {
+                            const rVal = data[i], gVal = data[i + 1], bVal = data[i + 2];
+                            // stärkerer chroma-key mit Toleranz
+                            const brightness = 0.299 * rVal + 0.587 * gVal + 0.114 * bVal;
+                            if (
+                                gVal > 60 &&                             // genug grün
+                                gVal > rVal * 1.25 &&                    // dominanter als rot
+                                gVal > bVal * 1.25 &&                    // dominanter als blau
+                                (brightness > 40 && brightness < 220) && // mittlere Helligkeit
+                                (Math.abs(rVal - bVal) < 60)             // kein gelblicher oder bläulicher Stich
+                                ) {
+                                    data[i + 3] = 0; // transparenter Pixel
+                                }
+                        }
+                        
+                        offctx.putImageData(imgData, 0, 0);
+                        const frameCanvas = document.createElement('canvas');
+                        frameCanvas.width = odoFrameW;
+                        frameCanvas.height = odoFrameH;
+                        frameCanvas.getContext('2d').drawImage(offscreen, 0, 0);
+                        odoFrames.push(frameCanvas);
+                    }
+                }
+            };
+            
+            odoRideImg = new Image();
+            odoRideImg.src = "odo-ride_sprites.png";
+            odoRideImg.onload = () => {
+                const cols = 8;
+                const rows = 5;
+                odoRideFrameW = Math.floor(odoRideImg.width / cols);
+                odoRideFrameH = Math.floor(odoRideImg.height / rows);
+                odoRideTotalFrames = cols * rows;
+                
+                const offscreen = document.createElement("canvas");
+                offscreen.width = odoRideFrameW;
+                offscreen.height = odoRideFrameH;
+                const offctx = offscreen.getContext("2d");
+                
+                for (let r = 0; r < rows; r++) {
+                    for (let c = 0; c < cols; c++) {
+                        offctx.clearRect(0, 0, odoRideFrameW, odoRideFrameH);
+                        offctx.drawImage(
+                                         odoRideImg,
+                                         c * odoRideFrameW,
+                                         r * odoRideFrameH,
+                                         odoRideFrameW,
+                                         odoRideFrameH,
+                                         0,
+                                         0,
+                                         odoRideFrameW,
+                                         odoRideFrameH
+                                         );
+                                         
+                                         const imgData = offctx.getImageData(0, 0, odoRideFrameW, odoRideFrameH);
+                                         const data = imgData.data;
+                                         for (let i = 0; i < data.length; i += 4) {
+                                             const rVal = data[i], gVal = data[i + 1], bVal = data[i + 2];
+                                             // stärkerer chroma-key mit Toleranz
+                                             const brightness = 0.299 * rVal + 0.587 * gVal + 0.114 * bVal;
+                                             if (
+                                                 gVal > 60 &&                             // genug grün
+                                                 gVal > rVal * 1.25 &&                    // dominanter als rot
+                                                 gVal > bVal * 1.25 &&                    // dominanter als blau
+                                                 (brightness > 40 && brightness < 220) && // mittlere Helligkeit
+                                                 (Math.abs(rVal - bVal) < 60)             // kein gelblicher oder bläulicher Stich
+                                                 ) {
+                                                     data[i + 3] = 0; // transparenter Pixel
+                                                 }
+                                         }
+                                         
+                                         offctx.putImageData(imgData, 0, 0);
+                                         const frameCanvas = document.createElement("canvas");
+                                         frameCanvas.width = odoRideFrameW;
+                                         frameCanvas.height = odoRideFrameH;
+                                         frameCanvas.getContext("2d").drawImage(offscreen, 0, 0);
+                                         odoRideFrames.push(frameCanvas);
+                    }
+                }
+            };
+            
+            odoGrabImg = new Image();
+            odoGrabImg.src = "odo-grab_sprites.png";
+            odoGrabImg.onload = () => {
+                const cols = 8;
+                const rows = 29;
+                odoGrabFrameW = Math.floor(odoGrabImg.width / cols);
+                odoGrabFrameH = Math.floor(odoGrabImg.height / rows);
+                odoGrabTotalFrames = cols * rows;
+                
+                const offscreen = document.createElement('canvas');
+                offscreen.width = odoGrabFrameW;
+                offscreen.height = odoGrabFrameH;
+                const offctx = offscreen.getContext('2d');
+                
+                for (let r = 0; r < rows; r++) {
+                    for (let c = 0; c < cols; c++) {
+                        offctx.clearRect(0, 0, odoGrabFrameW, odoGrabFrameH);
+                        offctx.drawImage(
+                                         odoGrabImg,
+                                         c * odoGrabFrameW,
+                                         r * odoGrabFrameH,
+                                         odoGrabFrameW,
+                                         odoGrabFrameH,
+                                         0,
+                                         0,
+                                         odoGrabFrameW,
+                                         odoGrabFrameH
+                                         );
+                                         
+                                         const imgData = offctx.getImageData(0, 0, odoGrabFrameW, odoGrabFrameH);
+                                         const data = imgData.data;
+                                         for (let i = 0; i < data.length; i += 4) {
+                                             const rVal = data[i], gVal = data[i + 1], bVal = data[i + 2];
+                                             // robuster Chroma-Key
+                                             if (
+                                                 gVal > 60 &&
+                                                 gVal > rVal * 1.15 &&
+                                                 gVal > bVal * 1.15 &&
+                                                 (rVal < 180 || bVal < 180) &&
+                                                 !(rVal > 200 && gVal > 200 && bVal > 200)
+                                                 ) {
+                                                     data[i + 3] = 0;
+                                                 }
+                                         }
+                                         offctx.putImageData(imgData, 0, 0);
+                                         
+                                         const frameCanvas = document.createElement('canvas');
+                                         frameCanvas.width = odoGrabFrameW;
+                                         frameCanvas.height = odoGrabFrameH;
+                                         frameCanvas.getContext('2d').drawImage(offscreen, 0, 0);
+                                         odoGrabFrames.push(frameCanvas);
+                    }
+                }
+                
+                console.log(`✅ Odo-Grab-Sprites geladen: ${odoGrabTotalFrames} Frames (${cols}×${rows})`);
+            };
+            
+            // preprocess frames: remove greenscreen tolerant and store offscreen canvases
+            function preprocessFramesOnce() {
+                // safety
+                try {
+                    if (!idaImg || !idaImg.width || !idaImg.height) return;
+                } catch (e) { return; }
+                
+                preFrames = []; // clear old frames
+                // detect frames-per-row and size (robust)
+                if (frameW && frameH && framesPerRow) {
+                    // use overrides if previously set
+                } else {
+                    // try to auto-detect: if height divides width or assume single-row
+                    if (idaImg.height > 0 && Number.isInteger(idaImg.width / idaImg.height)) {
+                        framesPerRow = idaImg.width / idaImg.height;
+                        frameW = Math.floor(idaImg.width / framesPerRow);
+                        frameH = idaImg.height;
+                    } else {
+                        framesPerRow = Math.max(1, Math.round(idaImg.width / idaImg.height) || 4);
+                        frameW = Math.floor(idaImg.width / framesPerRow);
+                        frameH = idaImg.height;
+                    }
+                }
+                
+                const rows = Math.max(1, Math.floor(idaImg.height / frameH));
+                totalFrames = framesPerRow * rows;
+                
+                for (let i = 0; i < totalFrames; i++) {
+                    const sx = (i % framesPerRow) * frameW;
+                    const sy = Math.floor(i / framesPerRow) * frameH;
+                    const off = document.createElement('canvas');
+                    off.width = frameW; off.height = frameH;
+                    const oc = off.getContext('2d');
+                    oc.drawImage(idaImg, sx, sy, frameW, frameH, 0, 0, frameW, frameH);
+                    
+                    // chroma-key using global CHROMA_* params
+                    try {
+                        const imgd = oc.getImageData(0, 0, frameW, frameH);
+                        const d = imgd.data;
+                        for (let p = 0; p < d.length; p += 4) {
+                            const r = d[p], g = d[p+1], b = d[p+2];
+                            
+                            // cheap saturation estimate
+                            const mx = Math.max(r, g, b);
+                            const mn = Math.min(r, g, b);
+                            const sat = mx === 0 ? 0 : (mx - mn) / mx;
+                            
+                            const dominance = g - Math.max(r, b);
+                            const ratioOk = (g > r * CHROMA_RATIO) && (g > b * CHROMA_RATIO);
+                            const minGOk = g >= CHROMA_MIN_G;
+                            const satOk = sat >= CHROMA_SAT;
+                            
+                            if ((ratioOk || dominance > 8) && minGOk && satOk) {
+                                const dom = Math.max(0, Math.min(255, dominance));
+                                if (dom >= CHROMA_HARD_CUTOFF) {
+                                    d[p+3] = 0;
+                                } else {
+                                    let alpha = 255 - Math.round(dom * CHROMA_DOM_FACTOR);
+                                    alpha = Math.max(0, Math.min(255, alpha));
+                                    d[p+3] = alpha;
+                                }
+                            }
+                        }
+                        oc.putImageData(imgd, 0, 0);
+                    } catch (err) {
+                        // getImageData may throw on cross-origin images — we keep raw frame as fallback
+                        console.warn('Chroma-key frame processing failed (CORS or other):', err);
+                    }
+                    preFrames.push(off);
+                }
+                
+                // reset animation indices so new frames show immediately
+                animIndex = 0;
+                lastAnimTS = performance.now();
+            }
+            
+            function preprocessBollenOnce() {
+                try {
+                    const off = document.createElement('canvas');
+                    const oc = off.getContext('2d');
+                    const w = bollenImg.width, h = bollenImg.height;
+                    if (!w || !h) return;
+                    off.width = w;
+                    off.height = h;
+                    oc.drawImage(bollenImg, 0, 0, w, h);
+                    const imgData = oc.getImageData(0, 0, w, h);
+                    const d = imgData.data;
+                    
+                    // Toleranter Greenscreen (alles was grünlich ist, transparent)
+                    for (let i = 0; i < d.length; i += 4) {
+                        const r = d[i], g = d[i + 1], b = d[i + 2];
+                        if (g > 80 && g > r * 0.6 && g > b * 0.6) {
+                            d[i + 3] = 0;
+                        }
+                    }
+                    
+                    oc.putImageData(imgData, 0, 0);
+                    
+                    // Frames extrahieren
+                    const framesAcross = 8; // oder wie du dein Sheet erzeugt hast
+                    const frameW = Math.floor(w / framesAcross);
+                    const frameH = frameW; // quadratische Frames
+                    bollenFrames = [];
+                    for (let i = 0; i < framesAcross; i++) {
+                        const sx = i * frameW;
+                        const sy = 0;
+                        const frameCanvas = document.createElement('canvas');
+                        frameCanvas.width = frameW;
+                        frameCanvas.height = frameH;
+                        const fctx = frameCanvas.getContext('2d');
+                        fctx.drawImage(off, sx, sy, frameW, frameH, 0, 0, frameW, frameH);
+                        bollenFrames.push(frameCanvas);
+                    }
+                    
+                    bollenFrameW = frameW;
+                    bollenFrameH = frameH;
+                    bollenFramesPerRow = framesAcross;
+                    bollenTotalFrames = bollenFrames.length;
+                    bollenAnimIndex = 0;
+                    bollenLastAnimTS = performance.now();
+                } catch (err) {
+                    console.warn("Bollen preprocess failed:", err);
+                }
+            }
+            
+            function triggerMegaPlatsch() {
+                if (!platschFrames.length) {
+                    console.warn("Platsch noch nicht geladen → später erneut triggern");
+                    return;
+                }
+
+                console.log("🔥 Mega-Platsch TRIGGER!");
+
+                megaPlatsch.active = true;
+                megaPlatsch.frame = 0;
+
+                // startet oberhalb des Bildes
+                megaPlatsch.x = 0;
+                megaPlatsch.y = -drawH * 0.9;
+
+                // Frame 110–119 (oder letzter Block)
+                const lastBlock = platschTotal - 10;
+                megaPlatsch.holdFrame = lastBlock + Math.floor(Math.random() * 10);
+
+                megaPlatsch.holdReached = false;
+            }
+
+            /* ---------- Draw Ida (uses preFrames if available) ---------- */
+            function drawIda() {
+                const now = performance.now();
+                if (!lastAnimTS) lastAnimTS = now;
+                if (now - lastAnimTS >= (1000 / ANIM_FPS)) {
+                    animIndex = (animIndex + 1) % Math.max(1, totalFrames || 1);
+                    lastAnimTS = now;
+                }
+                
+                let frameCanvas = (preFrames.length ? preFrames[animIndex] : null);
+                if (frameCanvas) {
+                    ctx.globalAlpha = boostActive ? 0.75 + 0.25 * Math.sin(Date.now()/90) : 1.0;
+                    ctx.drawImage(frameCanvas, 0, 0, frameCanvas.width, frameCanvas.height, ida.x, ida.y, ida.w, ida.h);
+                    ctx.globalAlpha = 1.0;
+                } else {
+                    // fallback: simple placeholder
+                    ctx.fillStyle = '#333';
+                    ctx.fillRect(ida.x, ida.y, ida.w, ida.h);
+                    ctx.fillStyle = '#fff';
+                    ctx.font = 'bold 18px sans-serif';
+                    ctx.fillText('Ida', ida.x + 8, ida.y + ida.h/2 + 6);
+                }
+                
+                if (magnetActive) {
+                    ctx.beginPath();
+                    ctx.arc(ida.x + ida.w/2, ida.y + ida.h/2, magnetRange, 0, Math.PI*2);
+                    ctx.strokeStyle = 'rgba(0,150,255,0.28)';
+                    ctx.lineWidth = 3;
+                    ctx.stroke();
+                }
+            }
+            
+            /* ---------- Earth spawn / update / draw ---------- */
+            
+            function spawnOdo() {
+                if (!odoFrames?.length || !odoFrameW || !odoFrameH) {
+                    console.warn("⚠️  Odo-Sprites noch nicht bereit, Spawn übersprungen.");
+                    return;
+                }
+                
+                const cssW = cssWidth();
+                // Zielbreite = original frame width * (1/8) * ODO_WIDTH_MULTIPLIER
+                // (wir behalten die gleiche Basis-Skalierung wie früher und multiplizieren die Breite)
+                const baseScale = 1 / 8;
+                const targetWidth = Math.floor(odoFrameW * baseScale * ODO_WIDTH_MULTIPLIER);
+                const scale = targetWidth / odoFrameW; // proportionaler Höhenfaktor
+                odo = {
+                    x: Math.random() * Math.max(0, (cssW - targetWidth)),
+                    y: -Math.ceil(odoFrameH * scale),
+                    w: targetWidth,
+                    h: Math.ceil(odoFrameH * scale),
+                    frame: 0,
+                    speed: 3 + Math.random() * 0.5
+                };
+                odoActive = true;
+                odoRiding = false;
+            }
+            
+            function spawnEarth() {
+                const cssW = cssWidth();
+                const cssH = cssHeight();
+                const size = Math.random() * 20 + 20;
+                const x = Math.random() * (cssW - size);
+                const y = -size;
+                
+                if (Math.random() < 0.03) {   // 3% Chance: ein neuer Bollen wird gespawnt
+                    earth.push({
+                        x,
+                        y,
+                        w: size,
+                        h: size,
+                        color: '#8B4513',
+                        frame: Math.floor(Math.random() * bollenTotalFrames),
+                        seen: false,
+                        prevY: y,
+                        
+                        // Animation der kleinen Bollen
+                        animSpeed: 0.3 + Math.random() * 0.2,
+                        animOffset: Math.floor(Math.random() * bollenTotalFrames),
+                        
+                        hitGroundOnce: false,   // Boden schon erreicht?
+                        blinking: false,
+                        blinkTimer: 0,
+                        blinkCount: 0,
+                        visible: true,
+                        
+                        platsch: false,
+                        platschFrame: 0,
+                        platschY: y,
+                        decisionMade: false,
+                    });
+                    
+                    // ⬇️ Hier – direkt NACH earth.push(), aber NOCH IM if-Block
+                    if (!odoActive && performance.now() > 5000 && Math.random() < ODO_SPAWN_PER_BOLL) {
+                        spawnOdo();
+                    }
+                }
+            }
+            
+            function updateEarth(dt) {
+                const cssW = cssWidth();
+                const cssH = cssHeight();
+                const groundY = cssH - 30;
+
+                let earthNext = [];
+                let stillAlive = [];
+
+                for (let e of earth) {
+
+                    /* -----------------------------
+                       1) Wenn der Bollen im Blinkmodus ist
+                    ----------------------------- */
+                    if (e.blinking) {
+                        e.blinkTimer += dt;
+
+                        if (e.blinkTimer >= 500) {
+                            e.blinkTimer = 0;
+                            e.visible = !e.visible;
+                            e.blinkCount++;
+                        }
+
+                        if (e.blinkCount >= 6) {
+                            // Blink fertig → Platsch starten
+                            e.blinking = false;
+                            e.visible = true;
+                            e.platsch = true;
+                            e.platschFrame = 0;
+
+                            console.log("💥 Blink fertig → kleiner Platsch startet!", e);
+                        }
+
+                        earthNext.push(e);
+                        continue;
+                    }
+
+                    /* -----------------------------
+                       2) Kleiner Platsch (lokales e.platsch)
+                    ----------------------------- */
+                    if (e.platsch) {
+
+                        if (!platschFrames.length) {
+                            // Falls Sprite noch nicht geladen → später rendern
+                            earthNext.push(e);
+                            continue;
+                        }
+
+                        // Platsch-Animation weiter
+                        e.platschFrame += 0.5;
+
+                        if (e.platschFrame >= platschTotal) {
+                            // Platsch fertig → großer Mega-Platsch!
+                            console.log("💥 Kleiner Platsch fertig → Mega-Platsch wird gestartet!");
+                            startMegaPlatsch();
+                            // Kleiner Bollen verschwindet endgültig
+                            continue;
+                        }
+
+                        earthNext.push(e);
+                        continue;
+                    }
+
+                    /* -----------------------------
+                       3) Normales Fallen
+                    ----------------------------- */
+                    e.prevY = e.y;
+                    e.y += (FRAME_FALL_BASE * fallSpeedMultiplier);
+
+                    // magnetischer Zug nur für normale Bollen
+                    if (magnetActive && e.seen && !e.blinking && !e.platsch  && !e.decisionMade) {
+                        const dx = (ida.x + ida.w/2) - (e.x + e.w/2);
+                        const dy = (ida.y + ida.h/2) - (e.y + e.h/2);
+                        const dist = Math.hypot(dx, dy) || 0.001;
+
+                        if (dist < magnetRange && dist > 0.1) {
+                            e.x += (dx / dist) * magnetPull;
+                            e.y += (dy / dist) * magnetPull;
+                        }
+                    }
+
+                    // Sichtbarkeit markieren
+                    if (!e.seen && e.y + e.h > 0 && e.y < cssH) e.seen = true;
+
+                    // Clip inside canvas
+                    e.x = Math.max(0, Math.min(e.x, cssW - e.w));
+                    e.y = Math.min(e.y, cssH - e.h);
+
+                    /* -----------------------------
+                       4) Ground Check → Blink / Strafe / Entfernen
+                    ----------------------------- */
+
+                    const crossed = (e.prevY < groundY && e.y >= groundY);
+                    const horizontallyVisible = (e.x + e.w > 0) && (e.x < cssW);
+
+                    if (crossed && e.seen && horizontallyVisible) {
+
+                        if (!e.decisionMade) {
+                            e.decisionMade = true;
+d
+                            // 10%-Chance auf Blink → Platsch
+                            if (!e.platsch && Math.random() < 0.1) {
+                                console.log("⚠️ Bollen wird ein Mega-Platsch-Kandidat!");
+
+                                e.blinking = true;
+                                e.blinkTimer = 0;
+                                e.blinkCount = 0;
+                                e.visible = true;
+
+                                // am Boden fixieren
+                                e.y = groundY;
+                                e.platschY = e.y;
+
+                                earthNext.push(e);
+                                continue;
+                            }
+
+                            // normale Strafe
+                            score = Math.max(0, score - 1);
+                            continue;
+                        }
+
+                        continue;
+                    }
+
+                    // --- jetzt Clipping durchführen (wichtig: erst nach ground-check) ---
+                    e.x = Math.max(0, Math.min(e.x, cssW - e.w));
+                    e.y = Math.min(e.y, cssH - e.h);
+
+                    /* -----------------------------
+                       5) Entfernen wenn weit unten
+                    ----------------------------- */
+                    if (e.y > cssH + 200) {
+                        continue;
+                    }
+
+                    stillAlive.push(e);
+                }
+
+                earth = [...earthNext, ...stillAlive];
+            }
+
+            function startMegaPlatsch() {
+              // Wenn die Platsch-Frames noch nicht bereit sind -> queued starten, sobald geladen
+              if (!platschFrames || !platschFrames.length) {
+                console.warn("⚠ Mega-Platsch: Frames noch nicht geladen, Start queued.");
+                megaPlatschPending = true;
+                return;
+              }
+
+              // initialize megaPlatsch state
+              megaPlatsch.active = true;
+              megaPlatsch.frame = 0;
+
+              // Start ausserhalb des Bildes, oben
+              megaPlatsch.x = 0;
+              megaPlatsch.y = -platschFrameH * megaPlatsch.holdWeight
+                + platschFrameH * megaPlatsch.heightWeight;
+
+              // wähle zufällig einen der letzten 10 Frames als "hold"-Frame
+              const lastFramesStart = Math.max(0, platschTotal - 10);
+              megaPlatsch.holdFrame = lastFramesStart + Math.floor(Math.random() * Math.min(10, platschTotal - lastFramesStart));
+              megaPlatsch.holdReached = false;
+
+              console.log("💥 Mega-Platsch startet mit holdFrame:", megaPlatsch.holdFrame);
+            }
+
+            /*
+            function startMegaPlatsch() {
+                if (!platschFrames.length) {
+                    console.warn("⚠ Mega-Platsch gestartet, aber Frames noch nicht geladen!");
+                    return;
+                }
+
+                megaPlatsch.active = true;
+                megaPlatsch.frame = 0;
+
+                // Mega Platsch startet oben außerhalb des Bildes
+                megaPlatsch.x = 0;
+                megaPlatsch.y = -platschFrameH * 1.2;
+
+                // Frame 110–119 → aus diesen 10 wird einer gewählt, auf dem das Sprite stehenbleibt
+                const lastFramesStart = Math.max(0, platschTotal - 10);
+                megaPlatsch.holdFrame = lastFramesStart + Math.floor(Math.random() * 10);
+
+                megaPlatsch.holdReached = false;
+
+                console.log("💥 Mega-Platsch startet! holdFrame =", megaPlatsch.holdFrame);
+            }
+             */
+
+            function drawEarth() {
+                const now = performance.now();
+                const frameDelay = 80; // ms pro Frame (~12.5 FPS)
+                
+                // globale Frame-Fortschaltung
+                if (bollenTotalFrames > 1 && now - bollenLastAnimTS > frameDelay) {
+                    bollenAnimIndex = (bollenAnimIndex + 1) % bollenTotalFrames;
+                    bollenLastAnimTS = now;
+                }
+                
+                for (let e of earth) {
+                    if (!e.visible) continue;
+                    
+                    // --- Platschanzeige ---
+                    if (e.platsch) {
+                        const idx = Math.floor(e.platschFrame);
+                        const frameCanvas = platschFrames[idx];
+                        
+                        // volle Breite
+                        const drawW = cssWidth();
+                        const scale = drawW / platschFrameW;
+                        const drawH = platschFrameH * scale;
+                        
+                        ctx.drawImage(frameCanvas, 0, e.platschY, drawW, drawH);
+                        continue;
+                    }
+                    
+                    if (bollenFrames.length > 0) {
+                        // 🔹 Asynchroner Offset je Bollen (siehe unten Schritt 3)
+                        const localFrame = (bollenAnimIndex + e.animOffset) % bollenTotalFrames;
+                        const frame = bollenFrames[localFrame];
+                        
+                        // 🔹 Seitenverhältnis beibehalten
+                        const aspect = bollenFrameH / bollenFrameW;   // z. B. 688 / 464 ≈ 1.48
+                        const scale = 2;                            // 🔸 größer zeichnen (150 %)
+                        const dw = e.w * scale;
+                        const dh = dw * aspect;                       // Höhe nach Verhältnis
+                        const dx = e.x - (dw - e.w) / 2;
+                        const dy = e.y - (dh - e.h) / 2;
+                        
+                        ctx.drawImage(frame, dx, dy, dw, dh);
+                    } else {
+                        // Fallback-Rechteck
+                        ctx.fillStyle = "#8B4513";
+                        ctx.fillRect(e.x, e.y, e.w, e.h);
+                    }
+                }
+            }
+
+            function drawMegaPlatsch(ctx) {
+                if (!megaPlatsch.active) return;
+
+                // Sprite über gesamte Breite strecken
+                let drawW = canvas.width / 2;
+                let scale = drawW / platschFrameW;
+                let drawH = platschFrameH * scale;
+
+                // Endposition (20% unter Boden)
+                const targetY = canvas.height * megaPlatsch.holdLevel;
+
+                // Bewegung nur solange nicht gehalten
+                if (!megaPlatsch.holdReached && megaPlatsch.y < targetY) {
+                    megaPlatsch.y += megaPlatsch.speed;
+
+                    if (megaPlatsch.y >= targetY) {
+                        megaPlatsch.holdReached = true;
+                        megaPlatsch.y = targetY;
+                    }
+                }
+
+                // Standbild aktivieren wenn holdFrame erreicht
+                let frame = megaPlatsch.frame;
+                if (!megaPlatsch.holdReached) {
+                    frame = Math.min(frame, megaPlatsch.holdFrame);
+                }
+
+                // Zukunft: frame stoppen
+                if (!megaPlatsch.holdReached) {
+                    megaPlatsch.frame++;
+                    if (megaPlatsch.frame >= platschTotal) megaPlatsch.frame = platschTotal - 1;
+                }
+
+                const f = platschFrames[frame];
+                if (!f) return;
+
+                ctx.drawImage(f, 0, megaPlatsch.y, drawW, drawH);
+            }
+            
+            /**
+             Falls nötig
+             */
+            function updateIda() {
+            }
+
+            function handleIdaCollecting() {
+                // -----------------------------
+                // Ida sammelt normale Bollen ein
+                // -----------------------------
+                const survivors = [];
+
+                for (let e of earth) {
+                    // nur normale Bollen — KEINE Blink-Bollen, KEINE Platsch-Bollen
+                    if (!e.blinking && !e.platsch) {
+                        const collides =
+                            (e.x + e.w > ida.x + ida.w * 0.3 &&
+                             e.x < ida.x + ida.w * 0.9 &&
+                             e.y + e.h > ida.y + 10 &&
+                             e.y < ida.y + ida.h);
+
+                        if (collides) {
+                            score++;
+                            playCollect(); // dein Sound
+                            continue; // Bollen verschwindet
+                        }
+                    }
+
+                    survivors.push(e);
+                }
+
+                earth = survivors;
+
+                const moveSpeed = boostActive ? 8 : 4;
+                ida.x += dir * moveSpeed;
+                ida.x = Math.max(0, Math.min(ida.x, cssWidth() - ida.w));
+                
+                if (boostActive && Date.now() > boostEndTime) boostActive = false;
+                if (magnetActive && Date.now() > magnetEndTime) magnetActive = false;
+            }
+            
+            function handleOdoCollecting() {
+            }
+            
+            /* ───────────────────────────────
+             🚜 Odo: Spawn, Fallen, Fahren
+             ─────────────────────────────── */
+
+            function updateOdo() {
+                if (!odoActive || !odo) return;
+                
+                // --- Fahrmodus (nach Einsammeln) ---
+                if (odoRiding || odoGrabbing) {
+                    odo.frame += 0.4;
+                    
+                    // Fährt nach links, stoppt aber exakt am Bildschirmrand
+                    odo.x = Math.max(odo.x - 2, 0);
+                    
+                    // Wenn am linken Rand angekommen → Greifmodus aktivieren
+                    if (odo.x <= 0) {
+                        odoRiding = false;
+                        odoGrabbing = true;
+                    }
+                    
+                    return;
+                }
+                
+                // --- Fallmodus ---
+                odo.y += odo.speed * fallSpeedMultiplier;
+                odo.frame += 0.3;
+                
+                // Kollision mit Ida prüfen (nur wenn noch fallend)
+                if (
+                    odo.x + odo.w > ida.x + ida.w * 0.6 &&
+                    odo.x < ida.x + ida.w * 0.4 &&
+                    odo.y + odo.h > ida.y + 40 &&
+                    odo.y < ida.y + ida.h - 40
+                    ) {
+                        // Wechsel in Fahrmodus: an Ida-Höhe andocken, Fahranimation starten
+                        odoRiding = true;
+                        odo.y = ida.y;      // andocken auf Idas Höhe
+                        odo.frame = 0;
+                        playOdoCollect();
+                        return;
+                    }
+                    
+                    // Wenn Odo unten angekommen ist → verschwinden
+                    const cssH = cssHeight();
+                    if (odo.y > cssH + odo.h) {
+                        odoActive = false;
+                        odo = null;
+                        odoRiding = false;
+                    }
+            }
+            
+            function drawOdo(ctx) {
+                if (!odoActive || !odo) return;
+                if (!ctx) return;   // Schutz, falls versehentlich drawOdo zu früh gerufen wird
+                
+                // passende Frame-Sammlung wählen
+                const frames = odoRiding ? odoRideFrames : odoFrames;
+                const total = odoRiding ? odoRideTotalFrames : odoTotalFrames;
+                if (!frames.length || total === 0) return;
+                
+                // Frameindex berechnen
+                const idx = Math.floor(odo.frame) % total;
+                const frameCanvas = frames[idx];
+                if (!frameCanvas) return;
+                
+                // Skalierung / Position
+                let drawW, drawH, drawY;
+                if (!odoGrabbing) {
+                    if (odoRiding) {
+                        // Fahrmodus
+                        drawW = odoRideFrameW * 0.15;
+                        drawH = odoRideFrameH * 0.15;
+                        // etwas höher platzieren (ca. halbe Ida-Höhe)
+                        drawY = odo.y - odoRideFrameH * 0.05;
+                    } else {
+                        // Fallmodus: Originalgröße
+                        drawW = odoFrameW * 0.27;
+                        drawH = odoFrameH * 0.27;
+                        drawY = odo.y;
+                    }
+                }
+                
+                // eigentliche Zeichnung
+                ctx.drawImage(frameCanvas, odo.x, drawY, drawW, drawH);
+                if (odoRiding) {
+                    // Frame-Index aktualisieren
+                    odoRideFrameIndex = (odoRideFrameIndex + 1) % odoRideFrames.length;
+                }
+                if (odoGrabbing) {
+                    if (!odoGrabFrames || odoGrabFrames.length === 0) return;
+                    
+                    // Frame-Animation
+                    odoGrabFrameIndex = (odoGrabFrameIndex + 1) % odoGrabFrames.length;
+                    const frame = odoGrabFrames[odoGrabFrameIndex];
+                    
+                    // 50% Größe (halb so groß)
+                    const scale = 0.5;
+                    const drawW = odoGrabFrameW * scale;
+                    const drawH = odoGrabFrameH * scale;
+                    
+                    // Sprite fix am linken Rand
+                    const drawX = 0;
+                    
+                    // Untere linke Ecke soll mit Odo (Ride) übereinstimmen:
+                    // → also Y so berechnen, dass der untere Rand auf gleicher Höhe liegt.
+                    const drawY = odo.y - odoGrabFrameH * 0.4;
+                    
+                    ctx.drawImage(frame, drawX, drawY, drawW, drawH);
+                    
+                    // Sammelbereich: Diagonale von unten links nach oben rechts
+                    const grabStart = { x: drawX + drawW * 0.05, y: drawY + drawH * 0.95 };
+                    const grabEnd = { x: drawX + drawW * 0.9, y: drawY + drawH * 0.25 };
+                    
+                    const survivors = [];
+                    for (let e of earth) {
+                        // Distanz zur Greif-Diagonalen
+                        const t = Math.max(
+                                           0,
+                                           Math.min(
+                                                    1,
+                                                    ((e.x - grabStart.x) * (grabEnd.x - grabStart.x) + (e.y - grabStart.y) * (grabEnd.y - grabStart.y)) /
+                                                    ((grabEnd.x - grabStart.x) ** 2 + (grabEnd.y - grabStart.y) ** 2)
+                                                    )
+                                           );
+                                           const closestX = grabStart.x + t * (grabEnd.x - grabStart.x);
+                                           const closestY = grabStart.y + t * (grabEnd.y - grabStart.y);
+                                           const dx = e.x - closestX;
+                                           const dy = e.y - closestY;
+                                           const dist = Math.sqrt(dx * dx + dy * dy);
+                                           
+                                           if (dist < 30) {
+                                               score ++;
+                                               playCollect();
+                                           } else {
+                                               survivors.push(e);
+                                           }
+                    }
+                    earth = survivors;
+                    
+                    // Nach letztem Frame: Greifen abgeschlossen
+                    if (odoGrabFrameIndex === odoGrabTotalFrames - 1) {
+                        odoGrabbing = false;
+                        odoActive = false;
+                    }
+                }
+            }
+            
+            
+            /* ---------- HUD ---------- */
+            function drawGround() {
+                const cssW = canvas.width;
+                const cssH = canvas.height;
+                
+                if (bgImage.complete && bgImage.naturalWidth > 0) {
+                    // Seitenverhältnis beibehalten, aber Fläche füllen
+                    const imgAspect = bgImage.width / bgImage.height;
+                    const canvasAspect = cssW / cssH;
+                    let drawW, drawH, drawX, drawY;
+                    if (imgAspect > canvasAspect) {
+                        // Bild ist breiter als Canvas
+                        drawH = cssH;
+                        drawW = imgAspect * cssH;
+                        drawX = -(drawW - cssW) / 2;
+                        drawY = 0;
+                    } else {
+                        // Bild ist höher als Canvas
+                        drawW = cssW;
+                        drawH = cssW / imgAspect;
+                        drawX = 0;
+                        drawY = -(drawH - cssH) / 2;
+                    }
+                    ctx.drawImage(bgImage, drawX, drawY, drawW / 2, drawH / 2);
+                } else {
+                    // Fallback: grüner Boden
+                    ctx.fillStyle = bgColor;
+                    ctx.fillRect(0, 0, cssW, cssH);
+                }
+                
+                // Bodenstreifen unten
+                ctx.fillStyle = bgColor;
+                ctx.fillRect(0, canvas.height - 40, canvas.width, 40);
+            }
+            
+            function drawScore() {
+                ctx.fillStyle = '#000';
+                ctx.font = "bold 18px sans-serif";
+                ctx.fillText("🪨 Erde gesammelt: " + score, 12, 24);
+            }
+            function drawDebug() {
+                if (!DEBUG) return;
+                debugEl.style.display = 'block';
+                debugEl.textContent = `score:${score} level:${level} frames:${totalFrames}`;
+            }
+            
+            /* ───────────────────────────────
+             🕹 Pause System
+             ─────────────────────────────── */
+            let paused = false;
+            
+            function togglePause() {
+                paused = !paused;
+                
+                const pauseBtn = document.getElementById('pauseBtn');
+                pauseBtn.textContent = paused ? "▶️" : "⏸";
+                
+                if (paused) {
+                    stopBgmShuffle(); // Musik anhalten
+                } else {
+                    restartShuffleBeat(); // Musik fortsetzen
+                    requestAnimationFrame(gameLoop); // Game Loop wieder starten
+                }
+            }
+            
+            /* ---------- Game Loop ---------- */
+            let lastFrame = performance.now();
+            function gameLoop() {
+                if (paused) return;
+                if (!ctx) return; // Canvas-Context existiert noch nicht
+
+                const now = performance.now();
+                const dt = now - lastFrame;
+                lastFrame = now;
+
+                // clear in CSS coords
+                const cw = cssWidth(), ch = cssHeight();
+                ctx.clearRect(0, 0, cw, ch);
+
+                updateAll(dt);
+                drawAll();
+
+                requestAnimationFrame(gameLoop);
+            }
+
+            function updateAll(dt) {
+                spawnEarth();
+
+                updateIda(dt);
+                updateOdo(dt);
+                updateEarth(dt);
+
+                handleIdaCollecting();     // <-- normale Bollen
+                handleOdoCollecting();     // <-- deine Odo-Kollision
+                checkLevelUp();            // <-- Level-System
+            }
+
+            function drawAll() {
+                const ctx = canvas.getContext("2d");
+                drawGround(ctx);
+
+                // *** Unten-Layer ***
+                drawMegaPlatsch(ctx);
+
+                // *** Mittel-Layer ***
+                drawEarth(ctx);
+
+                // *** TOP-Layer ***
+                drawOdo(ctx);
+                drawIda(ctx);
+
+                drawScore();
+                drawDebug();
+            }
+
+            /* ---------- Controls: buttons, touch, pointer, keyboard ---------- */
+            function addPointerButton(id, down, up) {
+                const btn = document.getElementById(id);
+                btn.addEventListener('touchstart', (e)=>{ e.preventDefault(); down(); }, {passive:false});
+                btn.addEventListener('touchend', (e)=>{ e.preventDefault(); up(); }, {passive:false});
+                btn.addEventListener('pointerdown', (e)=>{ e.preventDefault(); down(); });
+                btn.addEventListener('pointerup', (e)=>{ e.preventDefault(); up(); });
+                btn.addEventListener('mouseleave', (e)=>{ e.preventDefault(); up(); });
+            }
+            addPointerButton('leftBtn', ()=> dir=-1, ()=> dir=0);
+            addPointerButton('rightBtn', ()=> dir=1, ()=> dir=0);
+            
+            /* middle button short/long */
+            let scoopTimer = null;
+            function scoopStart() {
+                if (scoopTimer) return;
+                scoopTimer = setTimeout(()=> { scoopTimer = null; activateMagnet(); }, 1000);
+            }
+            function scoopEnd() {
+                if (scoopTimer) { clearTimeout(scoopTimer); scoopTimer = null; activateBoost(); } else { /* long press ended */ }
+            }
+            addPointerButton('scoopBtn', scoopStart, scoopEnd);
+            
+            /* keyboard */
+            let scoopKeyDown = false;
+            window.addEventListener('keydown', (e)=> {
+                if (e.repeat) return;
+                if (e.code === 'ArrowLeft') { dir = -1; e.preventDefault(); }
+                else if (e.code === 'ArrowRight') { dir = 1; e.preventDefault(); }
+                else if (e.code === 'Space' || e.code === 'Numpad0') { scoopKeyDown = true; scoopStart(); e.preventDefault(); }
+            });
+            window.addEventListener('keyup', (e)=> {
+                if (e.code === 'ArrowLeft' || e.code === 'ArrowRight') { dir = 0; }
+                else if (e.code === 'Space' || e.code === 'Numpad0') { scoopKeyDown = false; scoopEnd(); }
+            });
+            
+            /* cancel on blur to avoid stuck timers */
+            window.addEventListener('blur', ()=> { if (scoopTimer) { clearTimeout(scoopTimer); scoopTimer = null; } boostActive=false; magnetActive=false; });
+            
+            // Pause Button
+            document.getElementById('pauseBtn').addEventListener('click', togglePause);
+            
+            // Entertaste (⏎) toggelt Pause
+            window.addEventListener('keydown', (e) => {
+                if (e.code === 'Enter') {
+                    togglePause();
+                    e.preventDefault();
+                }
+            });
+            
+            /* Boost / Magnet actions */
+            function activateBoost() { ensureAudioContext(); boostActive = true; boostEndTime = Date.now() + 1000; playBoostSound(); }
+            function activateMagnet() { ensureAudioContext(); magnetActive = true; magnetEndTime = Date.now() + 3000; playMagnetSound(); }
+            
+            /* ---------- Audio auto-start overlay ---------- */
+            function tryAutoStart() {
+                ensureAudioContext();
+                if (audioCtx && audioCtx.state === 'running') { restartShuffleBeat(); overlay.style.display='none'; return; }
+                overlay.style.display = 'flex';
+                const startNow = ()=> { ensureAudioContext(); restartShuffleBeat(); overlay.style.display='none'; };
+                startButton.addEventListener('click', startNow, { once:true });
+                overlay.addEventListener('pointerdown', startNow, { once:true });
+                window.addEventListener('keydown', startNow, { once:true });
+            }
+            
+            function loadIdaFrames() {
+              const cols = 8;
+              const rows = 14;
+
+              frameW = Math.floor(idaImg.width / cols);
+              frameH = Math.floor(idaImg.height / rows);
+              totalFrames = cols * rows;
+
+              preFrames = [];
+
+              const off = document.createElement("canvas");
+              off.width = frameW;
+              off.height = frameH;
+              const offCtx = off.getContext("2d");
+
+              for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+
+                  // Frame zeichnen
+                  offCtx.clearRect(0, 0, frameW, frameH);
+                  offCtx.drawImage(
+                    idaImg,
+                    c * frameW, r * frameH, frameW, frameH,
+                    0, 0, frameW, frameH
+                  );
+
+                  // === Chromakey ===
+                  const imgData = offCtx.getImageData(0, 0, frameW, frameH);
+                  const data = imgData.data;
+
+                  for (let i = 0; i < data.length; i += 4) {
+                    const rVal = data[i];
+                    const gVal = data[i + 1];
+                    const bVal = data[i + 2];
+
+                    // Toleranter Greenscreen – identisch wie bei Odo/Bollen
+                    if (gVal > 80 && gVal > rVal * 1.2 && gVal > bVal * 1.2) {
+                      data[i + 3] = 0;
+                    }
+                  }
+
+                  offCtx.putImageData(imgData, 0, 0);
+
+                  // in Frame-Liste speichern
+                  const cv = document.createElement("canvas");
+                  cv.width = frameW;
+                  cv.height = frameH;
+                  cv.getContext("2d").drawImage(off, 0, 0);
+
+                  preFrames.push(cv);
+                }
+              }
+
+              console.log("Ida Frames inkl. ChromaKey geladen:", totalFrames);
+            }
+            
+            function checkLevelUp() {
+                if (score >= nextLevelScore) {
+                    level++;
+                    nextLevelScore += 100;
+                    console.log("LEVEL UP! Jetzt Level:", level);
+                    
+                    const gained = 1;
+                    fallSpeedMultiplier *= Math.pow(LEVEL_SPEED_FACTOR, gained);
+                    bpmFactor *= Math.pow(1.06, gained);
+                    restartShuffleBeat();
+
+                    bgIndex++;
+                    if (bgIndex > maxBgImages) bgIndex = 1;
+                    bgImage.src = `${bgPrefix}${String(bgIndex).padStart(3, "0")}${bgExtension}`;
+                }
+            }
+
+            idaImg.onload = () => {
+                // preprocess frames safely
+                loadIdaFrames();
+                // set initial positions in CSS coords
+                resizeCanvas();
+                ida.x = Math.max(0, (cssWidth() - ida.w) / 2);
+                ida.y = cssHeight() - ida.h - 40;
+                // start loop
+                requestAnimationFrame(gameLoop);
+                // try audio
+                tryAutoStart();
+            };
+            
+            bollenImg.onload = () => {
+              const cols = 8;
+              const rows = 11;
+
+              bollenFrameW = Math.floor(bollenImg.width / cols);
+              bollenFrameH = Math.floor(bollenImg.height / rows);
+              bollenTotalFrames = cols * rows;
+
+              bollenFrames = [];
+
+              const off = document.createElement("canvas");
+              off.width = bollenFrameW;
+              off.height = bollenFrameH;
+              const offCtx = off.getContext("2d");
+
+              for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+
+                  offCtx.clearRect(0, 0, bollenFrameW, bollenFrameH);
+
+                  offCtx.drawImage(
+                    bollenImg,
+                    c * bollenFrameW, r * bollenFrameH, bollenFrameW, bollenFrameH,
+                    0, 0, bollenFrameW, bollenFrameH
+                  );
+
+                  // === Greenscreen (tolerant) ===
+                  const imgData = offCtx.getImageData(0, 0, bollenFrameW, bollenFrameH);
+                  const data = imgData.data;
+
+                  for (let i = 0; i < data.length; i += 4) {
+                    const rVal = data[i];
+                    const gVal = data[i + 1];
+                    const bVal = data[i + 2];
+
+                    if (gVal > 80 && gVal > rVal * 1.2 && gVal > bVal * 1.2) {
+                      data[i + 3] = 0;
+                    }
+                  }
+
+                  offCtx.putImageData(imgData, 0, 0);
+
+                  const frameCanvas = document.createElement("canvas");
+                  frameCanvas.width = bollenFrameW;
+                  frameCanvas.height = bollenFrameH;
+                  frameCanvas.getContext("2d").drawImage(off, 0, 0);
+
+                  bollenFrames.push(frameCanvas);
+                }
+              }
+
+              console.log(`✅ Bollen-Sprites geladen: ${bollenTotalFrames} Frames (8×11)`);
+            };
+            
+            idaImg.onerror = () => {
+                // if sprite not found, warn but continue
+                console.warn("ida sprite not found: " + SPRITE_SRC + " — using placeholder Ida.");
+                resizeCanvas();
+                ida.x = Math.max(0, (cssWidth() - ida.w) / 2);
+                ida.y = cssHeight() - ida.h - 40;
+                requestAnimationFrame(gameLoop);
+                tryAutoStart();
+            };
+            
+            /* expose tiny API for debugging from console */
+            window._game = { restartShuffleBeat, stopBgmShuffle, ensureAudioContext };
+            
+            /* DEBUG toggle */
+            if (DEBUG) document.getElementById('debug').style.display = 'block';
+            
+            
+            // ========== UI Wiring for Chroma sliders ==========
+            (function mountChromaUI() {
+                const minG = document.getElementById('ch_min_g');
+                const ratio = document.getElementById('ch_ratio');
+                const sat = document.getElementById('ch_sat');
+                const factor = document.getElementById('ch_factor');
+                const reproc = document.getElementById('ch_reprocess');
+                const presetAgg = document.getElementById('ch_preset_aggr');
+                
+                if (!minG || !ratio || !sat || !factor || !reproc) return;
+                
+                // init sliders with current values
+                minG.value = CHROMA_MIN_G;
+                ratio.value = Math.round(CHROMA_RATIO * 100);
+                sat.value = Math.round(CHROMA_SAT * 100);
+                factor.value = CHROMA_DOM_FACTOR;
+                
+                // when reprocess clicked -> update globals and re-run preprocess
+                reproc.addEventListener('click', () => {
+                    CHROMA_MIN_G = Number(minG.value);
+                    CHROMA_RATIO = Number(ratio.value) / 100;
+                    CHROMA_SAT = Number(sat.value) / 100;
+                    CHROMA_DOM_FACTOR = Number(factor.value);
+                    // clear previous frames & reprocess from source image
+                    preFrames = [];
+                    totalFrames = 0;
+                    // small timeout to allow UI paint
+                    setTimeout(() => {
+                        try {
+                            preprocessFramesOnce();
+                            console.log('Frames reprocessed: totalFrames=', totalFrames, 'params=', CHROMA_MIN_G, CHROMA_RATIO, CHROMA_SAT, CHROMA_DOM_FACTOR);
+                        } catch (e) {
+                            console.error('Reprocess failed', e);
+                        }
+                    }, 20);
+                });
+                
+                // aggressive preset quick button
+                presetAgg.addEventListener('click', () => {
+                    CHROMA_MIN_G = 50; CHROMA_RATIO = 1.05; CHROMA_SAT = 0.05; CHROMA_DOM_FACTOR = 2.0;
+                    minG.value = CHROMA_MIN_G;
+                    ratio.value = Math.round(CHROMA_RATIO * 100);
+                    sat.value = Math.round(CHROMA_SAT * 100);
+                    factor.value = CHROMA_DOM_FACTOR;
+                    reproc.click();
+                });
+            })();
+        </script>
+    </body>
+</html>

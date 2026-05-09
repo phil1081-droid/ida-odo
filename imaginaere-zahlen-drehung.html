@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <title>3D-Würfel – Imaginäre Zahlen</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #111;
+      font-family: sans-serif;
+    }
+
+    canvas {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+
+<canvas id="canvas"></canvas>
+
+<script>
+  const canvas = document.getElementById("canvas");
+  const ctx = canvas.getContext("2d");
+
+  function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
+
+  window.addEventListener("resize", resizeCanvas);
+  resizeCanvas();
+
+  function getCenter() {
+    return {
+      x: canvas.width / 2,
+      y: canvas.height / 2
+    };
+  }
+
+  // ---------------- Komplexe Zahlen ----------------
+  function Complex(re, im) {
+    return { re, im };
+  }
+
+  function multiply(a, b) {
+    return {
+      re: a.re * b.re - a.im * b.im,
+      im: a.re * b.im + a.im * b.re
+    };
+  }
+
+  // ---------------- 3D-Würfel ----------------
+  const size = 70; // etwas kleiner für mehr Abstand
+
+  let cube = [
+    { x: -1, y: -1, z: -1 },
+    { x:  1, y: -1, z: -1 },
+    { x:  1, y:  1, z: -1 },
+    { x: -1, y:  1, z: -1 },
+    { x: -1, y: -1, z:  1 },
+    { x:  1, y: -1, z:  1 },
+    { x:  1, y:  1, z:  1 },
+    { x: -1, y:  1, z:  1 }
+  ];
+
+  const faces = [
+    [0, 1, 2, 3],
+    [4, 5, 6, 7],
+    [0, 1, 5, 4],
+    [2, 3, 7, 6],
+    [1, 2, 6, 5],
+    [0, 3, 7, 4]
+  ];
+
+  // Licht von links oben vorne
+  const light = { x: -1, y: -1, z: 1 };
+
+  // Drehungen mit imaginären Zahlen
+  let rotX = Complex(1, 0);
+  let rotY = Complex(1, 0);
+
+  const speedX = Complex(Math.cos(0.01), Math.sin(0.01));
+  const speedY = Complex(Math.cos(0.013), Math.sin(0.013));
+
+  function project(p) {
+    const center = getCenter();
+    const scale = Math.min(canvas.width, canvas.height) * 0.35 / (p.z + 4);
+    return {
+      x: center.x + p.x * scale,
+      y: center.y + p.y * scale
+    };
+  }
+
+  function rotate(point) {
+    // Rotation um X-Achse (komplex: y + z·i)
+    let yz = multiply(
+      Complex(point.y, point.z),
+      rotX
+    );
+
+    // Rotation um Y-Achse (komplex: x + z·i)
+    let xz = multiply(
+      Complex(point.x, yz.im),
+      rotY
+    );
+
+    return {
+      x: xz.re * size,
+      y: yz.re * size,
+      z: xz.im * size
+    };
+  }
+
+  function normalize(v) {
+    const l = Math.sqrt(v.x*v.x + v.y*v.y + v.z*v.z);
+    return { x: v.x/l, y: v.y/l, z: v.z/l };
+  }
+
+  function dot(a, b) {
+    return a.x*b.x + a.y*b.y + a.z*b.z;
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    rotX = multiply(rotX, speedX);
+    rotY = multiply(rotY, speedY);
+
+    const points = cube.map(rotate);
+
+    faces.forEach(face => {
+      const p0 = points[face[0]];
+      const p1 = points[face[1]];
+      const p2 = points[face[2]];
+
+      const u = { x: p1.x - p0.x, y: p1.y - p0.y, z: p1.z - p0.z };
+      const v = { x: p2.x - p0.x, y: p2.y - p0.y, z: p2.z - p0.z };
+
+      const normal = normalize({
+        x: u.y*v.z - u.z*v.y,
+        y: u.z*v.x - u.x*v.z,
+        z: u.x*v.y - u.y*v.x
+      });
+
+      const brightness = Math.max(0, dot(normal, normalize(light)));
+      const shade = Math.floor(200 * brightness) + 30;
+
+      ctx.beginPath();
+      face.forEach((i, idx) => {
+        const p = project(points[i]);
+        if (idx === 0) ctx.moveTo(p.x, p.y);
+        else ctx.lineTo(p.x, p.y);
+      });
+      ctx.closePath();
+
+      ctx.fillStyle = `rgb(${shade}, ${shade}, ${shade})`;
+      ctx.fill();
+      ctx.strokeStyle = "#000";
+      ctx.stroke();
+    });
+
+    requestAnimationFrame(draw);
+  }
+
+  draw();
+</script>
+
+</body>
+</html>
