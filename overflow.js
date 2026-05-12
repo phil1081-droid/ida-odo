@@ -37,7 +37,8 @@ class OverflowManager {
 
         // Legacy: activePlatsch wird nicht mehr benötigt, bleibt für Kompatibilität
         this.activePlatsch  = null;
-        this._slotCounter   = 0;    // zählt jeden reserveSlot()-Aufruf hoch
+        this._slotCounter   = 0;
+        this._mergedCanvas  = null;  // zusammengeführter Puddle-Canvas
     }
 
     /* ---------- Setup ---------- */
@@ -104,6 +105,7 @@ class OverflowManager {
             this.onOverflow();
         }
 
+        this._rebuildMerged();
         return slotId;
     }
 
@@ -126,6 +128,7 @@ class OverflowManager {
                 const c = this.puddleStack[i].canvas;
                 c.getContext("2d").drawImage(lastFrame, 0, 0, drawW, drawH);
                 this.puddleStack[i].pending = false;
+                this._rebuildMerged();
                 break;
             }
         }
@@ -143,6 +146,7 @@ class OverflowManager {
         this.totalPuddles  = 0;
         this._stackStep    = PUDDLE_STACK_STEP_DEFAULT;
         this._slotCounter  = 0;
+        this._mergedCanvas = null;
     }
 
     /* ---------- Welt-Offset ---------- */
@@ -151,37 +155,50 @@ class OverflowManager {
         return this.puddleStack.length * this._stackStep;
     }
 
-    /* ---------- Pfützen zeichnen ---------- */
+    /* ---------- Merged-Canvas neu aufbauen ---------- */
 
-    drawPuddles(ctx) {
-        const n = this.puddleStack.length;
-        if (!n) return;
+    _rebuildMerged() {
+        if (!this.puddleStack.length) { this._mergedCanvas = null; return; }
 
-        // PUDDLE_BOTTOM_PX = y-Position der Pfützen-Unterkante im Original-Frame.
-        // Mit originalScale auf Canvas-Koordinaten umrechnen → identische Formel
-        // wie in _platschDrawRect → nahtloser Übergang Animation → Pfütze.
+        if (!this._mergedCanvas) {
+            this._mergedCanvas = document.createElement('canvas');
+            this._mergedCanvas.width  = DESIGN_W;
+            this._mergedCanvas.height = WORLD_H;
+        }
+        const mc   = this._mergedCanvas;
+        const mctx = mc.getContext('2d');
+        mctx.clearRect(0, 0, mc.width, mc.height);
+
         const PUDDLE_BOTTOM_PX = 322;
-
-        for (let i = 0; i < n; i++) {
+        for (let i = 0; i < this.puddleStack.length; i++) {
             const item = this.puddleStack[i];
             if (!item || !item.canvas) continue;
-
-            const sc         = item.originalScale;
-            const baseDrawY  = WORLD_H - PUDDLE_BOTTOM_PX * sc;   // exakt wie _platschDrawRect
-            const stackOffset = i * this._stackStep;
-            const drawY      = baseDrawY - stackOffset;
-
-            ctx.drawImage(item.canvas, 0, drawY, item.drawW, item.drawH);
+            const sc       = item.originalScale;
+            const baseDrawY = WORLD_H - PUDDLE_BOTTOM_PX * sc;
+            const drawY    = baseDrawY - i * this._stackStep;
+            mctx.drawImage(item.canvas, 0, drawY, item.drawW, item.drawH);
         }
+    }
+
+    /* ---------- Pfützen zeichnen — ein einziger drawImage-Aufruf ---------- */
+
+    drawPuddles(ctx) {
+        if (!this.puddleStack.length || !this._mergedCanvas) return;
+        ctx.drawImage(this._mergedCanvas, 0, 0);
     }
 
     /* ---------- Kompatibilität (wird von ida.js / obstacle.js aufgerufen) ---------- */
 
     removeTop() {
-        if (this.puddleStack.length) {
-            this.puddleStack.pop();
-            this.totalPuddles = Math.max(0, this.totalPuddles - 1);
-            return true;
+        // Nur committete Pfützen entfernen — pending-Slots (laufende Animation)
+        // werden übersprungen, damit commitPuddle() den Slot noch findet.
+        for (let i = this.puddleStack.length - 1; i >= 0; i--) {
+            if (!this.puddleStack[i].pending) {
+                this.puddleStack.splice(i, 1);
+                this.totalPuddles = Math.max(0, this.totalPuddles - 1);
+                this._rebuildMerged();
+                return true;
+            }
         }
         return false;
     }

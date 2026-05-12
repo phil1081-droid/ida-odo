@@ -211,13 +211,18 @@ window.triggerIdaFrozen         = triggerIdaFrozen;
 // ==============================================================
 // Spawn- und Update-Funktionen
 // ==============================================================
+const _chanceCache = new Map();
+
 function getObstacleChancesForLevel(level) {
-    return OBSTACLE_TYPES
+    if (_chanceCache.has(level)) return _chanceCache.get(level);
+    const result = OBSTACLE_TYPES
         .filter(o => level >= o.levelAppearance)
         .map(o => ({
             type:   o.nr,
             chance: o.initialChance + (level - o.levelAppearance) * o.chanceIncrease
         }));
+    _chanceCache.set(level, result);
+    return result;
 }
 
 function spawnObstacle(instance, type) {
@@ -245,10 +250,9 @@ function spawnFallingThing(instance, level) {
     const chances = getObstacleChancesForLevel(effectiveLevel);
 
     if (!chances.length || Math.random() > 0.92) {
-        const earlyTypes = OBSTACLE_TYPES.filter(t => t.levelAppearance <= 2);
-        if (earlyTypes.length > 0 && Math.random() < 0.04) {
-            const def = earlyTypes[Math.floor(Math.random() * earlyTypes.length)];
-            spawnObstacle(instance, def.nr);
+        if (chances.length > 0 && Math.random() < 0.04) {
+            const def = chances[Math.floor(Math.random() * chances.length)];
+            spawnObstacle(instance, def.type);
             return;
         }
     }
@@ -268,8 +272,11 @@ function spawnFallingThing(instance, level) {
 }
 
 function updateObstacles(instance, dt) {
-    const cssH = cssHeight(instance);
-    instance.state.obstacles = instance.state.obstacles.filter(o => {
+    const cssH     = cssHeight(instance);
+    const obstacles = instance.state.obstacles;
+    let write = 0;
+    for (let i = 0; i < obstacles.length; i++) {
+        const o = obstacles[i];
         const alive = o.update(cssH, {
             state:                   instance.state,
             overflow:                instance.overflow,
@@ -278,8 +285,9 @@ function updateObstacles(instance, dt) {
             playObstacleSound,
             playBulldozerSweep
         });
-        return alive && !o.dead;
-    });
+        if (alive && !o.dead) obstacles[write++] = o;
+    }
+    obstacles.length = write;
 }
 
 window.getObstacleChancesForLevel = getObstacleChancesForLevel;
@@ -287,4 +295,3 @@ window.spawnObstacle              = spawnObstacle;
 window.spawnFallingThing          = spawnFallingThing;
 window.updateObstacles            = updateObstacles;
 
-console.log("obstacle.js geladen — Obstacle + Spawn/Update bereit.");

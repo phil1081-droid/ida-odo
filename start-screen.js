@@ -1,27 +1,29 @@
 // =======================================================
 // StartScreenAnimation
 // - wiederverwendbar für Start & Game Over
+// mode: 'contain' | 'cover' | 'width'
+//   contain — in Bounds einpassen, zentriert (Standard / Game Over)
+//   width   — Breite füllen, oben bündig, Höhe per Seitenverhältnis (Start-Screen)
+//   cover   — Bounds füllen, mittig, Seiten abschneiden
 // =======================================================
 
 class StartScreenAnimation {
-    constructor(canvas, spriteSrc, designW, designH, posterSrc = null) {
+    constructor(canvas, spriteSrc, designW, designH, mode = 'contain') {
         this.canvas = canvas;
         this.ctx = canvas.getContext("2d");
 
         this.designW = designW;
         this.designH = designH;
+        this.mode = mode || 'contain';
 
         this.spriteSrc = spriteSrc;
-        this.posterSrc = null;
 
         // Animation
         this.frames = [];
         this.frameW = 0;
         this.frameH = 0;
 
-        // Poster
-        this.posterCanvas = null;
-        this.phase = "anim";
+        this.phase = "static";
 
         // Control flags
         this.running = false;
@@ -35,21 +37,14 @@ class StartScreenAnimation {
         this.fps = 12;
         this.lastTs = 0;
 
-        // FX
-        this.bollen = [];
-
         this._tick = this._tick.bind(this);
     }
 
     /* ===================== public ===================== */
 
     start(numberOfRows) {
+        if (this.running) return;
         this.running = true;
-
-        if (this.posterSrc) {
-            this._loadPoster();
-        }
-
         this._loadAnimation(numberOfRows);
         requestAnimationFrame(this._tick);
     }
@@ -58,22 +53,15 @@ class StartScreenAnimation {
         this.running = false;
     }
 
-    allowAnimation() {
-        if (!this._ready) return;
-        this.phase = "anim";
+    allowAnimation(delayMs = 0) {
+        if (!this._ready) {
+            setTimeout(() => this.allowAnimation(delayMs), 50);
+            return;
+        }
+        setTimeout(() => { this.phase = "anim"; }, Math.max(0, delayMs));
     }
 
     /* ===================== loading ===================== */
-
-    _loadPoster() {
-        loadPosterWithChroma(
-            this.posterSrc,
-            CHROMA_PRESETS.ida,
-            (cv) => {
-                this.posterCanvas = cv;
-            }
-        );
-    }
 
     _loadAnimation(numberOfRows) {
         loadMultiFrameImages(
@@ -85,48 +73,8 @@ class StartScreenAnimation {
                 this.frameW = w;
                 this.frameH = h;
                 this._ready = true;
-
-                this._initBollen();
             }
         );
-    }
-
-    /* ===================== bollen ===================== */
-
-    _initBollen() {
-        this.bollen = [];
-        for (let i = 0; i < 8; i++) {
-            this.bollen.push(this._newBolle());
-        }
-    }
-
-    _newBolle() {
-        return {
-            x: Math.random() * this.designW,
-            y: Math.random() * this.designH,
-            r: 4 + Math.random() * 6,
-            v: 20 + Math.random() * 40
-        };
-    }
-
-    _updateBollen(dt) {
-        for (const b of this.bollen) {
-            b.y += b.v * (dt / 1000);
-            if (b.y > this.designH + b.r) {
-                b.y = -b.r;
-                b.x = Math.random() * this.designW;
-            }
-        }
-    }
-
-    _drawBollen() {
-        const ctx = this.ctx;
-        ctx.fillStyle = "rgba(0,0,0,0.15)";
-        for (const b of this.bollen) {
-            ctx.beginPath();
-            ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
-            ctx.fill();
-        }
     }
 
     /* ===================== loop ===================== */
@@ -139,13 +87,11 @@ class StartScreenAnimation {
         const dt = ts - this.lastTs;
         this.lastTs = ts;
 
-        // ← Bollen und Poster-Phase komplett entfernen
-        // _drawBollen() weg — zeichnet verzerrt auf das 704px-Canvas
-        // phase "poster" weg — CSS übernimmt das
+        if (!this._ready) return;
 
-        if (!this._ready) return;  // noch nichts laden → nichts zeichnen
-
-        this._updateAnimation(dt);
+        if (this.phase === "anim") {
+            this._updateAnimation(dt);
+        }
         this._drawFrame();
     }
 
@@ -171,20 +117,6 @@ class StartScreenAnimation {
 
     /* ===================== drawing ===================== */
 
-    _drawPoster() {
-        const scale = this.designW / this.posterCanvas.width;
-        const drawH = this.posterCanvas.height * scale;
-        const y = (this.designH - drawH) / 2;
-
-        this.ctx.drawImage(
-            this.posterCanvas,
-            0,
-            y,
-            this.designW,
-            drawH
-        );
-    }
-
     _drawFrame() {
         if (this.autoClear) {
             this.ctx.clearRect(0, 0, this.designW, this.designH);
@@ -193,16 +125,30 @@ class StartScreenAnimation {
         const frame = this.frames[this.currentFrame];
         if (!frame) return;
 
-        const scale = this.designW / this.frameW;
-        const drawH = this.frameH * scale;
-        const y = (this.designH - drawH) / 2;
+        let scale, drawW, drawH, x, y;
 
-        this.ctx.drawImage(
-            frame,
-            0,
-            y,
-            this.designW,
-            drawH
-        );
+        if (this.mode === 'width') {
+            // Breite füllen, Höhe per Seitenverhältnis, oben bündig — identisch zu <img width:100%>
+            scale = this.designW / this.frameW;
+            drawW = this.designW;
+            drawH = this.frameH * scale;
+            x = 0;
+            y = 0;
+        } else if (this.mode === 'cover') {
+            scale = Math.max(this.designW / this.frameW, this.designH / this.frameH);
+            drawW = this.frameW * scale;
+            drawH = this.frameH * scale;
+            x = (this.designW - drawW) / 2;
+            y = (this.designH - drawH) / 2;
+        } else {
+            // contain (Standard)
+            scale = Math.min(this.designW / this.frameW, this.designH / this.frameH);
+            drawW = this.frameW * scale;
+            drawH = this.frameH * scale;
+            x = (this.designW - drawW) / 2;
+            y = (this.designH - drawH) / 2;
+        }
+
+        this.ctx.drawImage(frame, x, y, drawW, drawH);
     }
 }

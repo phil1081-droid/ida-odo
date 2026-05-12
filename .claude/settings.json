@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Get-ChildItem -Directory)",
+      "Bash(Select-Object Name)",
+      "Bash(python server.py)",
+      "Bash(Start-Sleep -Seconds 2)",
+      "Bash(Invoke-WebRequest -Uri http://localhost:8080 -UseBasicParsing -TimeoutSec 3)",
+      "Bash(Select-Object -ExpandProperty StatusCode)",
+      "Bash(ssh -V)"
+    ]
+  }
+}

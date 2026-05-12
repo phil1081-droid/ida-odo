@@ -29,7 +29,7 @@ class GameLoop {
         requestAnimationFrame(this._tick);
 
         let dt = 0;
-        if (this._lastTs !== null) dt = ts - this._lastTs;
+        if (this._lastTs !== null) dt = Math.min(ts - this._lastTs, 100);
         this._lastTs = ts;
 
         this.logic.update(this.instance, dt);
@@ -42,25 +42,30 @@ class GameLoop {
 ------------------------------------------------------- */
 
 function scaleFrame() {
-    // Single-Modus: globales frameEl (wird in initGameInstances gesetzt)
     if (!frameEl) return;
-    const scale = Math.min(window.innerHeight / DESIGN_H, window.innerWidth / DESIGN_W);
+    const scale  = Math.min(window.innerHeight / DESIGN_H, window.innerWidth / DESIGN_W);
+    const left   = Math.round((window.innerWidth  - DESIGN_W * scale) / 2);
+    const top    = Math.round((window.innerHeight - DESIGN_H * scale) / 2);
     frameEl.style.transform       = `scale(${scale})`;
     frameEl.style.transformOrigin = "top left";
     frameEl.style.position        = "absolute";
-    frameEl.style.left            = "0";
-    frameEl.style.top             = "0";
+    frameEl.style.left            = `${Math.max(0, left)}px`;
+    frameEl.style.top             = `${Math.max(0, top)}px`;
 }
 
 function scaleFrameMulti(instance) {
     if (!instance.frameEl) return;
     const vw    = window.innerWidth / 2;
     const scale = Math.min(window.innerHeight / DESIGN_H, vw / DESIGN_W);
+    const top   = Math.round((window.innerHeight - DESIGN_H * scale) / 2);
+    const left  = instance.suffix === '1'
+        ? Math.round((vw - DESIGN_W * scale) / 2)
+        : Math.round(vw + (vw - DESIGN_W * scale) / 2);
     instance.frameEl.style.transform       = `scale(${scale})`;
     instance.frameEl.style.transformOrigin = "top left";
     instance.frameEl.style.position        = "absolute";
-    instance.frameEl.style.left            = instance.suffix === '1' ? "0" : "50%";
-    instance.frameEl.style.top             = "0";
+    instance.frameEl.style.left            = `${Math.max(0, left)}px`;
+    instance.frameEl.style.top             = `${Math.max(0, top)}px`;
     instance.frameEl.style.width           = "50vw";
 }
 
@@ -94,5 +99,3 @@ window.cacheInstanceSize = cacheInstanceSize;
 window.scaleFrame      = scaleFrame;
 window.scaleFrameMulti = scaleFrameMulti;
 window.resizeCanvas    = resizeCanvas;
-
-console.log("game-loop.js geladen — GameLoop + Layout bereit.");

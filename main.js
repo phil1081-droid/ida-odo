@@ -72,29 +72,53 @@ function spawnScorePopup(instance, x, y, text = "+1") {
 
 function updateAndDrawPopups(ctx, instance) {
     if (!instance.scorePopups || !instance.scorePopups.length) return;
-    const now = performance.now();
-    instance.scorePopups = instance.scorePopups.filter(p => {
-        const t = (now - p.born) / p.life;   // 0→1
-        if (t >= 1) return false;
+    const now    = performance.now();
+    const popups = instance.scorePopups;
+    const prevA  = ctx.globalAlpha;
+    const prevTA = ctx.textAlign;
+    ctx.fillStyle   = "#FFD700";
+    ctx.strokeStyle = "#000";
+    ctx.lineWidth   = 3;
+    ctx.textAlign   = "center";
+    let write = 0;
+    for (let i = 0; i < popups.length; i++) {
+        const p = popups[i];
+        const t = (now - p.born) / p.life;
+        if (t >= 1) continue;
         const alpha = 1 - t;
-        const dy    = -40 * t;               // schwebt nach oben
-        const prevA = ctx.globalAlpha;
-        const prevTA = ctx.textAlign;
+        const dy    = -40 * t;
         ctx.globalAlpha = alpha;
         ctx.font        = `bold ${Math.round(18 + t * 6)}px sans-serif`;
-        ctx.fillStyle   = "#FFD700";
-        ctx.strokeStyle = "#000";
-        ctx.lineWidth   = 3;
-        ctx.textAlign   = "center";
         ctx.strokeText(p.text, p.x, p.y + dy);
         ctx.fillText(p.text,   p.x, p.y + dy);
-        ctx.globalAlpha = prevA;
-        ctx.textAlign   = prevTA;
-        return true;
-    });
+        popups[write++] = p;
+    }
+    popups.length    = write;
+    ctx.globalAlpha  = prevA;
+    ctx.textAlign    = prevTA;
 }
 
-/* ── 4. Vignette ─────────────────────────────────────── */
+/* ── 4. Hintergrund-DrawRect-Cache ───────────────────── */
+const _bgDrawCache = new Map();
+
+function _getBgDrawRect(bg) {
+    if (_bgDrawCache.has(bg)) return _bgDrawCache.get(bg);
+    const imgAspect    = bg.naturalWidth / bg.naturalHeight;
+    const canvasAspect = DESIGN_W / WORLD_H;
+    let drawW, drawH, drawX0, drawY;
+    if (imgAspect > canvasAspect) {
+        drawH = WORLD_H; drawW = imgAspect * WORLD_H;
+        drawX0 = -(drawW - DESIGN_W) / 2; drawY = 0;
+    } else {
+        drawH = DESIGN_W / imgAspect; drawW = DESIGN_W;
+        drawX0 = 0; drawY = -(drawH - WORLD_H) / 2;
+    }
+    const rect = { drawW, drawH, drawX0, drawY };
+    _bgDrawCache.set(bg, rect);
+    return rect;
+}
+
+/* ── 5. Vignette ─────────────────────────────────────── */
 let _vignetteCache = null;
 let _vignetteCacheKey = "";
 
@@ -139,7 +163,7 @@ function drawEntityShadow(ctx, entity, bgOffsetX = 0, opts = {}) {
     ctx.globalAlpha = prevAlpha;
 }
 
-/* ── 6. Ida-Glow beim Sammeln ────────────────────────── */
+/* ── 6. Ida-Glow beim Sammeln (pre-rendered, kein shadowBlur) ── */
 function triggerCollectGlow(instance) {
     instance.collectGlow = performance.now() + 180;
 }
@@ -149,6 +173,34 @@ function getCollectGlowAlpha(instance) {
     const remaining = instance.collectGlow - performance.now();
     if (remaining <= 0) { instance.collectGlow = 0; return 0; }
     return remaining / 180;
+}
+
+let _idaGlowCanvas = null;
+let _idaGlowForW   = 0;
+
+function _drawIdaGlow(c, ida, alpha) {
+    if (!_idaGlowCanvas || _idaGlowForW !== ida.w) {
+        const pad = 28;
+        const gc  = document.createElement('canvas');
+        gc.width  = ida.w + pad * 2;
+        gc.height = ida.h + pad * 2;
+        const gx  = gc.getContext('2d');
+        const cx  = gc.width  / 2;
+        const cy  = gc.height / 2;
+        const r   = Math.max(ida.w, ida.h) / 2 + pad;
+        const grad = gx.createRadialGradient(cx, cy, 0, cx, cy, r);
+        grad.addColorStop(0,   'rgba(255,215,0,0.6)');
+        grad.addColorStop(0.5, 'rgba(255,200,0,0.2)');
+        grad.addColorStop(1,   'rgba(255,215,0,0)');
+        gx.fillStyle = grad;
+        gx.fillRect(0, 0, gc.width, gc.height);
+        _idaGlowCanvas = gc;
+        _idaGlowForW   = ida.w;
+    }
+    const pad = 28;
+    c.globalAlpha = alpha * 0.85;
+    c.drawImage(_idaGlowCanvas, ida.x - pad, ida.y - pad);
+    c.globalAlpha = 1;
 }
 
 /* =======================================================
@@ -199,7 +251,17 @@ function createInstance(suffix = '', colorMode = 'yellow') {
         triggerGameOver(instance);
     };
 
-    instance.startAnim = new StartScreenAnimation(instance.canvas, "start_sprites.png", DESIGN_W, DESIGN_H);
+    // Full-frame overlay canvas (390×DESIGN_H) so animation extends behind buttons
+    const startCanvas = document.createElement('canvas');
+    startCanvas.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;z-index:4;pointer-events:none;';
+    const dpr = window.devicePixelRatio || 1;
+    startCanvas.width  = DESIGN_W * dpr;
+    startCanvas.height = DESIGN_H * dpr;
+    startCanvas.getContext('2d').setTransform(dpr, 0, 0, dpr, 0, 0);
+    instance.frameEl.appendChild(startCanvas);
+    instance._startCanvas = startCanvas;
+
+    instance.startAnim = new StartScreenAnimation(startCanvas, "start_sprites.png", DESIGN_W, DESIGN_H, 'width');
     instance.startAnim.start(14);
 
     return instance;
@@ -218,32 +280,19 @@ function drawGround(ctx, instance) {
     }
 
     if (bg.complete && bg.naturalWidth > 0) {
-        const imgAspect    = bg.width / bg.height;
-        const canvasAspect = DESIGN_W / WORLD_H;
-        let drawW, drawH, drawX, drawY;
-
-        if (imgAspect > canvasAspect) {
-            drawH = WORLD_H;
-            drawW = imgAspect * WORLD_H;
-            drawX = -(drawW - DESIGN_W) / 2;
-            drawY = 0;
-        } else {
-            drawH = DESIGN_W / imgAspect;
-            drawW = DESIGN_W;
-            drawX = 0;
-            drawY = -(drawH - WORLD_H) / 2;
-        }
-
-        drawX += (instance?.bgOffsetX ?? 0);
-        ctx.drawImage(bg, drawX, drawY, drawW, drawH);
+        const { drawW, drawH, drawX0, drawY } = _getBgDrawRect(bg);
+        ctx.drawImage(bg, drawX0 + (instance?.bgOffsetX ?? 0), drawY, drawW, drawH);
     }
 }
 
+const _SCORE_FONT = "bold 18px sans-serif";
+
 function drawScore(instance) {
-    instance.ctx.fillStyle = '#000';
-    instance.ctx.font      = "bold 18px sans-serif";
-    instance.ctx.textAlign = "left";
-    instance.ctx.fillText("Erde gesammelt: " + instance.state.score, 12, 24);
+    const c = instance.ctx;
+    c.fillStyle = '#000';
+    c.font      = _SCORE_FONT;
+    c.textAlign = "left";
+    c.fillText("Erde gesammelt: " + instance.state.score, 12, 24);
 }
 
 function drawObstacles(instance) {
@@ -312,18 +361,11 @@ function drawAllForInstance(instance) {
 
     if (instance.state.odo) instance.state.odo.draw(c);
 
-    // Ida mit optionalem Collect-Glow
+    // Ida mit optionalem Collect-Glow (pre-rendered, kein shadowBlur)
     if (instance.state.ida) {
         const glowAlpha = getCollectGlowAlpha(instance);
-        if (glowAlpha > 0) {
-            c.save();
-            c.shadowColor = `rgba(255,215,0,${glowAlpha})`;
-            c.shadowBlur  = 20 * glowAlpha;
-            instance.state.ida.draw(c, instance.state.magnet.active, instance.state.boost.active);
-            c.restore();
-        } else {
-            instance.state.ida.draw(c, instance.state.magnet.active, instance.state.boost.active);
-        }
+        if (glowAlpha > 0) _drawIdaGlow(c, instance.state.ida, glowAlpha);
+        instance.state.ida.draw(c, instance.state.magnet.active, instance.state.boost.active);
     }
 
     // Score-Popups im Weltkoordinatensystem (folgen dem offsetY-Translate)
@@ -470,12 +512,11 @@ const logic = {
             handleIdaHit(instance, instance.suffix === "1" ? "2" : "1");
         }
 
-        if (inputState.boost)  { state.boost.active  = true; state.boost.until  = Date.now() + 1000; }
-        if (inputState.magnet) { state.magnet.active = true; state.magnet.until = Date.now() + 3000; }
-
-        const now = Date.now();
-        if (state.boost.active  && now > state.boost.until)  state.boost.active  = false;
-        if (state.magnet.active && now > state.magnet.until) state.magnet.active = false;
+        const nowMs = Date.now();
+        if (inputState.boost)  { state.boost.active  = true; state.boost.until  = nowMs + 1000; }
+        if (inputState.magnet) { state.magnet.active = true; state.magnet.until = nowMs + 3000; }
+        if (state.boost.active  && nowMs > state.boost.until)  state.boost.active  = false;
+        if (state.magnet.active && nowMs > state.magnet.until) state.magnet.active = false;
 
         if      (inputState.left  && !inputState.right) state.dir = -1;
         else if (inputState.right && !inputState.left)  state.dir =  1;
@@ -521,7 +562,7 @@ function triggerGameOver(instance) {
 }
 
 function startGameOverAnimation(instance) {
-    instance.gameOverAnim = new StartScreenAnimation(instance.canvas, "gameover_sprites.png", DESIGN_W, DESIGN_H, null);
+    instance.gameOverAnim = new StartScreenAnimation(instance.canvas, "gameover_sprites.png", DESIGN_W, WORLD_H);
     instance.gameOverAnim.start(9);
     instance.gameOverAnim.allowAnimation();
 }
@@ -582,11 +623,21 @@ async function tryAutoStartForInstance(instance) {
     await waitForSprites();
     assignSpritesToInstance(instance);
 
-    instance.startAnim.start(14);
-    instance.startAnim.allowAnimation();
+    instance.startAnim.allowAnimation(500);
 
-    const host = instance.canvas.closest(".gameHost, #gameFrame");
-    if (host) host.style.backgroundImage = "none";
+    // Only fade the poster once startAnim has drawn frame 0 — prevents black flash
+    const poster = document.getElementById('startPoster' + instance.suffix);
+    if (poster) {
+        const tryFade = () => {
+            if (!instance.startAnim._ready) { setTimeout(tryFade, 50); return; }
+            requestAnimationFrame(() => {
+                poster.style.transition = 'opacity 0.4s';
+                poster.style.opacity = '0';
+                setTimeout(() => poster.remove(), 400);
+            });
+        };
+        tryFade();
+    }
 
     let started = false;
     const startNow = async () => {
@@ -615,9 +666,13 @@ async function tryAutoStartForInstance(instance) {
         instance.state.ida.posLimitRight = cssWidth(instance) - instance.state.ida.w;
 
         instance.startAnim.stop();
-        overlayEl.style.display    = "none";
+        overlayEl.style.display = "none";
         instance.state.gameStarted = true;
         cacheInstanceSize(instance);
+        // Remove start overlay canvas after game loop has drawn its first frame
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+            if (instance._startCanvas) { instance._startCanvas.remove(); instance._startCanvas = null; }
+        }));
 
         // Megaplatsch-Shake: playMegaPlatschSound patchen
         const _origMegaPlatsch = window.playMegaPlatschSound || playMegaPlatschSound;
@@ -661,5 +716,7 @@ window.addEventListener("resize", () => {
     gameInstances.forEach(cacheInstanceSize);
 });
 
+// Pre-scale immediately — frameEl isn't set via initGameInstances yet (that runs on load),
+// so set it directly here to avoid the unstyled flash.
+frameEl = document.getElementById('gameFrame');
 scaleFrame();
-resizeCanvas();

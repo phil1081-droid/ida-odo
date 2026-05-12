@@ -1,3 +1,6 @@
+// Einmaliger Mess-Canvas für measureText in showSpeech
+const _odoSpeechCtx = document.createElement('canvas').getContext('2d');
+
 /*
 ==============================================================
 =  Odo-Klasse
@@ -24,7 +27,8 @@ class Odo extends FallingEntity {
         // Speech bubble (same system as Ida)
         this.speech = {
             text: "",
-            until: 0
+            until: 0,
+            textWidth: 0
         };
         
         this.rideTexts = [
@@ -163,7 +167,7 @@ class Odo extends FallingEntity {
             const len2 = vx * vx + vy * vy || 0.0001;
 
             const world = gameCtx.lumpsParam;
-            const survivors = [];
+            let write = 0;
             let collectedCount = 0;
 
             const nowFrame = performance.now();
@@ -198,26 +202,11 @@ class Odo extends FallingEntity {
                     }
                     collectedCount++;
                 } else {
-                    survivors.push(b);
+                    world[write++] = b;
                 }
             }
 
-            world.length = 0;
-            for (let s of survivors) world.push(s);
-
-            if (!gameCtx.__odoHardCleanupInstalled) {
-                gameCtx.__odoHardCleanupInstalled = true;
-                const originalUpdateLump = gameCtx.updateLump;
-                gameCtx.updateLump = function() {
-                    if (typeof originalUpdateLump === "function") originalUpdateLump.apply(this, arguments);
-                    for (let i = this.lump.length - 1; i >= 0; i--) {
-                        if (this.lump[i] && this.lump[i].collected === true) {
-                            this.lump.splice(i, 1);
-                        }
-                    }
-                };
-            }
-
+            world.length = write;
             gameCtx.__odoLastCollectFrame = Math.floor(nowFrame);
             return true;
         }
@@ -262,9 +251,7 @@ class Odo extends FallingEntity {
 
             const paddingX = 10 * SCALE;
             const paddingY = 6 * SCALE;
-            const metrics = ctx.measureText(text);
-
-            const boxW = Math.ceil(metrics.width) + paddingX * 2;
+            const boxW = this.speech.textWidth + paddingX * 2;
             const boxH = (24 * SCALE) + paddingY * 2;
 
             let bx = drawX + drawW / 2 - boxW / 2;
@@ -309,9 +296,10 @@ class Odo extends FallingEntity {
     }
     
     showSpeech(text, ms = 2000) {
-        const now = (typeof performance !== "undefined" ? performance.now() : Date.now());
-        this.speech.text = text;
-        this.speech.until = now + ms;
+        this.speech.text  = text;
+        this.speech.until = performance.now() + ms;
+        _odoSpeechCtx.font = "16px sans-serif";
+        this.speech.textWidth = Math.ceil(_odoSpeechCtx.measureText(text).width);
     }
 }
 

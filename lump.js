@@ -288,20 +288,27 @@ function spawnLump(instance) {
     }
 }
 
-function updateLumps(instance, dt) {
-    const cssH      = cssHeight(instance);
-    const survivors = [];
-    const toTransfer = [];
+// Pre-allokiert — nie neu erzeugt, nur geleert
+const _lumpTransfer = [];
 
-    for (let lump of instance.state.lumps) {
+function updateLumps(instance, dt) {
+    const cssH  = cssHeight(instance);
+    const lumps = instance.state.lumps;
+    _lumpTransfer.length = 0;
+    let write = 0;
+
+    for (let i = 0; i < lumps.length; i++) {
+        const lump = lumps[i];
         if (lump.update(cssH, dt, instance)) {
-            survivors.push(lump);
+            lumps[write++] = lump;
         } else if (lump.dead && lump.state === "hit" && lump.targetInstanceId) {
-            toTransfer.push(lump);
+            _lumpTransfer.push(lump);
         }
     }
+    lumps.length = write;
 
-    toTransfer.forEach(lump => {
+    for (let i = 0; i < _lumpTransfer.length; i++) {
+        const lump = _lumpTransfer[i];
         const targetInstance = gameInstances.find(inst => inst.suffix === lump.targetInstanceId);
         if (targetInstance) {
             lump.state        = "fall";
@@ -312,9 +319,7 @@ function updateLumps(instance, dt) {
             lump.x = Math.random() * (cssWidth(targetInstance) - lump.w);
             targetInstance.state.lumps.push(lump);
         }
-    });
-
-    instance.state.lumps = survivors;
+    }
 }
 
 function updateGlobalLumpAnimation() {
@@ -330,4 +335,3 @@ window._platschDrawRect        = _platschDrawRect;
 window.spawnLump               = spawnLump;
 window.updateLumps             = updateLumps;
 window.updateGlobalLumpAnimation = updateGlobalLumpAnimation;
-console.log("lump.js geladen — Lump-Klasse + Spawn/Update bereit.");

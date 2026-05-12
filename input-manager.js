@@ -17,6 +17,12 @@ class InputManager {
 
         this._fireHitEvent = [false, false];
         this._disabled     = [false, false];
+
+        // Pre-allokierte Snapshots — einmal erzeugt, nie neu
+        this._snapshot = [
+            { left: false, right: false, boost: false, magnet: false, hit: false },
+            { left: false, right: false, boost: false, magnet: false, hit: false }
+        ];
     }
 
     /* ───────────────────────────────
@@ -24,13 +30,12 @@ class InputManager {
     ─────────────────────────────── */
 
     poll(i = 0) {
-        const snapshot = {
-            left:   this.left[i],
-            right:  this.right[i],
-            boost:  this._boostQueued[i],
-            magnet: this._magnetQueued[i],
-            hit:    this._fireHitEvent[i]
-        };
+        const snapshot    = this._snapshot[i];
+        snapshot.left     = this.left[i];
+        snapshot.right    = this.right[i];
+        snapshot.boost    = this._boostQueued[i];
+        snapshot.magnet   = this._magnetQueued[i];
+        snapshot.hit      = this._fireHitEvent[i];
         this._boostQueued[i]  = false;
         this._magnetQueued[i] = false;
         this._fireHitEvent[i] = false;
@@ -246,4 +251,3 @@ function applyJoyConEvent(data) {
 }
 pollEvents();
 
-console.log("input-manager.js geladen — InputManager + handleIdaHit bereit.");

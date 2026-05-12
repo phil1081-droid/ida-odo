@@ -25,6 +25,18 @@ html, body {
     flex: 1;
     position: relative;
     overflow: hidden;
+    background: #000;
+}
+
+#startPoster {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: auto;
+    background: #000;
+    z-index: 5;
+    pointer-events: none;
 }
 
 #gameCanvas {

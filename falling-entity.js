@@ -82,4 +82,3 @@ class FallingEntity extends Entity {
     }
 }
 window.FallingEntity = FallingEntity;
-console.log("entity-falling.js geladen — Klasse FallingEntity bereit.");

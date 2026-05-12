@@ -1,17 +1,14 @@
 # server.py
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import SimpleHTTPRequestHandler, HTTPServer, ThreadingHTTPServer
 import json
 
 pending_events = []  # Nur Events seit letztem Poll (wird geleert!)
 
-class Handler(BaseHTTPRequestHandler):
-    def _set_cors_headers(self):
+class Handler(SimpleHTTPRequestHandler):
+    def end_headers(self):
         self.send_header('Access-Control-Allow-Origin', '*')
         self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
         self.send_header('Access-Control-Allow-Headers', 'Content-Type')
-
-    def end_headers(self):
-        self._set_cors_headers()
         super().end_headers()
 
     def do_OPTIONS(self):
@@ -21,18 +18,15 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path == '/events':
             global pending_events
-            # Gib alle gesammelten Events zurück und leere die Liste
-            events_to_send = pending_events.copy()  # Kopie, damit race conditions vermieden
-            pending_events = []  # Reset – keine Wachstum!
-            
+            events_to_send = pending_events.copy()
+            pending_events = []
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
             self.end_headers()
             self.wfile.write(json.dumps(events_to_send).encode('utf-8'))
         else:
-            self.send_response(200)
-            self.end_headers()
-            self.wfile.write(b'Server laeuft! GET /events fur neue Joy-Con-Events.')
+            # Statische Dateien über SimpleHTTPRequestHandler ausliefern
+            super().do_GET()
 
     def do_POST(self):
         if self.path == '/input':
@@ -41,17 +35,23 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 data = json.loads(post_data)
                 print("📨 Neues Event:", data)
-                pending_events.append(data)  # Sammeln bis nächster GET
+                pending_events.append(data)
             except json.JSONDecodeError:
                 print("Ungültiges JSON")
-            
             self.send_response(200)
             self.end_headers()
             self.wfile.write(b'{"status": "ok"}')
 
+    def log_message(self, format, *args):
+        # /events-Polling nicht in der Konsole zumüllen
+        if '/events' not in args[0]:
+            super().log_message(format, *args)
+
 if __name__ == '__main__':
     PORT = 8080
-    server = HTTPServer(('', PORT), Handler)
-    print(f"Server läuft auf http://localhost:{PORT}/events")
-    print("Events werden gesammelt und bei jedem GET geleert.")
+    server = ThreadingHTTPServer(('', PORT), Handler)
+    print(f"Server läuft auf http://localhost:{PORT}")
+    print(f"  Spiel:       http://localhost:{PORT}/index.html")
+    print(f"  Multiplayer: http://localhost:{PORT}/multiplay.html")
+    print(f"  Joy-Con API: POST /input  |  GET /events")
     server.serve_forever()

@@ -1,5 +1,62 @@
 /* -----------------------------------------------------------
    ida.js — Spielfigur
+
+   Pre-rendered Glow-Canvas für Boost (ersetzt shadowBlur)
+   und gecachter Magnet-Gradient (ersetzt createRadialGradient/Frame)
+----------------------------------------------------------- */
+
+// Einmaliger Mess-Canvas für measureText in showSpeech
+const _idaSpeechCtx = document.createElement('canvas').getContext('2d');
+
+let _boostGlowCanvas = null;
+let _boostGlowForW   = 0;
+
+function _drawBoostGlow(ctx, ida) {
+    if (!_boostGlowCanvas || _boostGlowForW !== ida.w) {
+        const pad = 20;
+        const gc  = document.createElement('canvas');
+        gc.width  = ida.w + pad * 2;
+        gc.height = ida.h + pad * 2;
+        const gx  = gc.getContext('2d');
+        const cx  = gc.width  / 2;
+        const cy  = gc.height / 2;
+        const r   = Math.max(ida.w, ida.h) / 2 + pad;
+        const grad = gx.createRadialGradient(cx, cy, 0, cx, cy, r);
+        grad.addColorStop(0,   'rgba(255,255,255,0.5)');
+        grad.addColorStop(0.5, 'rgba(255,255,255,0.2)');
+        grad.addColorStop(1,   'rgba(255,255,255,0)');
+        gx.fillStyle = grad;
+        gx.fillRect(0, 0, gc.width, gc.height);
+        _boostGlowCanvas = gc;
+        _boostGlowForW   = ida.w;
+    }
+    const pad = 20;
+    ctx.drawImage(_boostGlowCanvas, ida.x - pad, ida.y - pad);
+}
+
+let _magnetGradCanvas = null;
+let _magnetGradR      = 0;
+
+function _getMagnetGradCanvas(r) {
+    if (_magnetGradCanvas && Math.abs(_magnetGradR - r) < 0.5) return _magnetGradCanvas;
+    const size = Math.ceil(r * 2) + 4;
+    const gc   = document.createElement('canvas');
+    gc.width = gc.height = size;
+    const gx   = gc.getContext('2d');
+    const c    = size / 2;
+    const grad = gx.createRadialGradient(c, c, 0, c, c, r);
+    grad.addColorStop(0.0,  'rgba(120,220,255,0.55)');
+    grad.addColorStop(0.25, 'rgba(120,200,255,0.35)');
+    grad.addColorStop(0.6,  'rgba(120,200,255,0.15)');
+    grad.addColorStop(1.0,  'rgba(120,200,255,0)');
+    gx.fillStyle = grad;
+    gx.fillRect(0, 0, size, size);
+    _magnetGradCanvas = gc;
+    _magnetGradR      = r;
+    return gc;
+}
+
+/* -----------------------------------------------------------
    Erbt von Entity (entity-base.js)
    Wird global via window.Ida bereitgestellt
    Minimal-invasiv, robust: verwaltet Walk/Idle, Frozen, Present
@@ -61,7 +118,8 @@ class Ida extends Entity {
         // speech bubble state
         this.speech = {
             text: "",
-            until: 0
+            until: 0,
+            textWidth: 0
         };
     }
 
@@ -155,8 +213,10 @@ class Ida extends Entity {
 
     handleIdaCollecting(state) {
         if (!state.ida) return;
-        const survivors = [];
-        for (let e of state.lumps) {
+        const lumps = state.lumps;
+        let write = 0;
+        for (let i = 0; i < lumps.length; i++) {
+            const e = lumps[i];
             // nur normale Lump — KEINE Blink-Lump, KEINE Platsch-Lump
             if (e.mode !== "blink" && e.mode !== "platsch" && !e.collected) {
                 const collides =
@@ -167,16 +227,14 @@ class Ida extends Entity {
                 if (collides) {
                     e.collected = true;
                     state.score++;
-                    playCollect(); // collect sound
-                    if (e.collected && state.activeBlinkLumpId === e.id) state.activeBlinkLumpId = null;
-                    continue; // Lump verschwindet
+                    playCollect();
+                    if (state.activeBlinkLumpId === e.id) state.activeBlinkLumpId = null;
+                    continue;
                 }
             }
-            
-            survivors.push(e);
+            lumps[write++] = e;
         }
-        
-        state.lumps = survivors;
+        lumps.length = write;
         state.ida.speed = state.boost.active ? 8 : 4;
         if (!state.ida.isInBlockingAnimation()) {
             if (state.dir < 0) state.ida.moveLeft();
@@ -185,8 +243,6 @@ class Ida extends Entity {
         }
 
         state.ida.x = Math.max(0, Math.min(state.ida.x, DESIGN_W - state.ida.w));
-        if (state.boost.active && Date.now() > state.boost.until) state.boost.active = false;
-        if (state.magnet.active && Date.now() > state.magnet.until) state.magnet.active = false;
     }
     
     // update() wird jede Frame von main aufgerufen: ida.update();
@@ -302,13 +358,10 @@ class Ida extends Entity {
         if (withBoost) {
             const pulse = 0.5 + 0.5 * Math.sin(now * 0.006);
             ctx.globalAlpha = 0.7 + pulse * 0.25;
-
-            ctx.shadowColor = "rgba(255,255,255,0.6)";
-            ctx.shadowBlur = 14;
+            _drawBoostGlow(ctx, this);
         }
         if (withMagnet) {
-            const t = now * 0.0025;
-
+            const t  = now * 0.0025;
             const cx = this.x + this.w / 2;
             const cy = this.y + this.h * 0.45;
             const r  = this.w * 1.15;
@@ -316,53 +369,28 @@ class Ida extends Entity {
             ctx.save();
             ctx.globalCompositeOperation = "lighter";
 
-            /* ========= Radial Field (bleibt gleich) ========= */
-            const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
-            grad.addColorStop(0.0, "rgba(120,220,255,0.55)");
-            grad.addColorStop(0.25,"rgba(120,200,255,0.35)");
-            grad.addColorStop(0.6, "rgba(120,200,255,0.15)");
-            grad.addColorStop(1.0, "rgba(120,200,255,0.0)");
+            // Pre-rendered Gradient — kein createRadialGradient pro Frame
+            const gc   = _getMagnetGradCanvas(r);
+            const half = gc.width / 2;
+            ctx.drawImage(gc, cx - half, cy - half);
 
-            ctx.fillStyle = grad;
-            ctx.beginPath();
-            ctx.arc(cx, cy, r, 0, Math.PI * 2);
-            ctx.fill();
-
-            /* ========= Complex Rotation Setup ========= */
-            const rot = {
-                re: Math.cos(t),
-                im: Math.sin(t)
-            };
-
-            // komplexe Rotation
-            const rotVec = (x, y) => ({
-                x: x * rot.re - y * rot.im,
-                y: x * rot.im + y * rot.re
-            });
-
+            // Field Lines — alle in einem beginPath/stroke statt 16 Einzelaufrufen
+            const cosT = Math.cos(t), sinT = Math.sin(t);
             ctx.translate(cx, cy);
-
-            /* ========= Field Lines ========= */
             ctx.strokeStyle = "rgba(200,240,255,0.35)";
-            ctx.lineWidth = 1.5;
-
+            ctx.lineWidth   = 1.5;
+            ctx.beginPath();
             const COUNT = 16;
             for (let i = 0; i < COUNT; i++) {
-                const a = (i / COUNT) * Math.PI * 2;
-
-                // Basisrichtung (nur HIER sin/cos, einmalig)
-                const bx = Math.cos(a);
-                const by = Math.sin(a);
-
-                const p1 = rotVec(bx * r * 0.2,  by * r * 0.2);
-                const p2 = rotVec(bx * r * 0.95, by * r * 0.95);
-
-                ctx.beginPath();
-                ctx.moveTo(p1.x, p1.y);
-                ctx.lineTo(p2.x, p2.y);
-                ctx.stroke();
+                const a  = (i / COUNT) * Math.PI * 2;
+                const bx = Math.cos(a), by = Math.sin(a);
+                // Inline komplexe Rotation — keine Objekt-Allokation
+                ctx.moveTo(bx * r * 0.2  * cosT - by * r * 0.2  * sinT,
+                           bx * r * 0.2  * sinT + by * r * 0.2  * cosT);
+                ctx.lineTo(bx * r * 0.95 * cosT - by * r * 0.95 * sinT,
+                           bx * r * 0.95 * sinT + by * r * 0.95 * cosT);
             }
-
+            ctx.stroke();
             ctx.restore();
         }
 
@@ -402,10 +430,7 @@ class Ida extends Entity {
 
             const paddingX = 10;
             const paddingY = 6;
-            const metrics = ctx.measureText(text);
-
-            const textW = Math.ceil(metrics.width);
-            const boxW = textW + paddingX * 2;
+            const boxW = this.speech.textWidth + paddingX * 2;
             const boxH = 24 + paddingY * 2;
 
             // Position above Ida
@@ -446,15 +471,19 @@ class Ida extends Entity {
             ctx.restore();
         }
 
-        // restore alpha
+        // Sicherheits-Reset: shadowBlur darf nie für nachfolgende Draws aktiv bleiben
+        ctx.shadowBlur  = 0;
+        ctx.shadowColor = 'transparent';
         ctx.globalAlpha = prevAlpha;
     }
 
     
     // Show a speech bubble for ms milliseconds
     showSpeech(text, ms = 2000) {
-        this.speech.text = text || "";
+        this.speech.text  = text || "";
         this.speech.until = this._now() + (ms || 2000);
+        _idaSpeechCtx.font = "16px sans-serif";
+        this.speech.textWidth = Math.ceil(_idaSpeechCtx.measureText(this.speech.text).width);
     }
 }
 
@@ -513,4 +542,3 @@ function updateBoostAndMagnet(state) {
 }
 
 window.Ida = Ida;
-console.log("ida.js geladen — Ida bereit.");

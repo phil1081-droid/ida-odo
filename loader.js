@@ -246,7 +246,6 @@ function loadMultiFrameImages(src, rows, chromaPreset, callback, cols = 8) {
                     frames.push(cv);
                 }
             }
-            console.log(`Loaded ${frames.length} frames from ${src}`);
             callback(frames, frameW, frameH);
         } catch (err) {
             console.error(`Error loading ${src}:`, err);
@@ -308,7 +307,6 @@ function preloadIdaWalk(instance) {
             SpritePool.ida.red    = frames.map(f => recolorYellowToRed(f));
             idaWalkFrameW = frameW; idaWalkFrameH = frameH;
             instance.idaWalkFrames = instance.colorMode === "red" ? SpritePool.ida.red : SpritePool.ida.yellow;
-            console.log("Ida walk Frames:", frames.length);
             resolve();
         };
         img.onerror = () => { console.warn("ida_sprites.png nicht gefunden"); resolve(); };
@@ -331,7 +329,6 @@ function preloadIdaIce(instance) {
             SpritePool.idaIce.red    = frames.map(f => recolorYellowToRed(f));
             idaIceFrameW = frameW; idaIceFrameH = frameH;
             instance.idaIceFrames = instance.colorMode === "red" ? SpritePool.idaIce.red : SpritePool.idaIce.yellow;
-            console.log("Ida Ice Frames:", frames.length);
             resolve();
         };
         img.onerror = () => { console.warn("ida-ice_sprites.png nicht gefunden"); resolve(); };
@@ -354,7 +351,6 @@ function preloadIdaPresent(instance) {
             SpritePool.idaPresent.red    = frames.map(f => recolorYellowToRed(f));
             idaPresentFrameW = frameW; idaPresentFrameH = frameH;
             instance.idaPresentFrames = instance.colorMode === "red" ? SpritePool.idaPresent.red : SpritePool.idaPresent.yellow;
-            console.log("Ida Present Frames:", frames.length);
             resolve();
         };
         img.onerror = () => { console.warn("ida-present_sprites.png nicht gefunden"); resolve(); };
@@ -401,18 +397,15 @@ function initSpriteLoading() {
         SpritePool.lump = frames;
         lumpFrameW = frameW; lumpFrameH = frameH;
         lumpTotalFrames = frames.length;
-        console.log("Bollen-Sprites geladen:", frames.length, "Frames");
     });
 
     loadMultiFrameImages("platsch_sprites.png", 15, CHROMA_PRESETS.platsch, (frames, frameW, frameH) => {
         SpritePool.platsch = frames;
         platschFrameW = frameW; platschFrameH = frameH;
-        console.log("Platsch-Sprites geladen:", frames.length, "Frames");
     });
 
     loadMultiFrameImages("obstacles.png", 2, CHROMA_PRESETS.obstacle, (frames) => {
         SpritePool.obstacles = frames;
-        console.log("Obstacle-Sprites geladen:", frames.length, "Frames");
     }, 4);
 }
 
@@ -432,7 +425,6 @@ function assignSpritesToInstance(instance) {
     instance.lumpFrames       = SpritePool.lump;
     instance.platschFrames    = SpritePool.platsch;
     instance.obstaclesFrames  = SpritePool.obstacles;
-    console.log(`Instance ${instance.suffix} (${instance.colorMode}): Sprites zugewiesen`);
 }
 
 function waitForSprites() {
@@ -458,4 +450,3 @@ function waitForSprites() {
 window.assignSpritesToInstance = assignSpritesToInstance;
 window.waitForSprites          = waitForSprites;
 
-console.log("loader.js geladen — LevelLoader, SpritePool, ChromaKey bereit.");

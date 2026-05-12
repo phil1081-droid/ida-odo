@@ -367,5 +367,3 @@ function hsGetTodayLeader() {
 window.showHighscoreOverlay = showHighscoreOverlay;
 window.hsGetEntries         = hsGetEntries;
 window.hsGetTodayLeader     = hsGetTodayLeader;
-
-console.log("highscore.js geladen — Tages-Highscore bereit.");

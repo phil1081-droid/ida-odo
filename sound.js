@@ -5,6 +5,23 @@
 /* ---------- Audio helpers ---------- */
 let bpmFactor = 1.0;
 
+// Gemeinsame WaveShaper-Kurven — einmalig berechnet, nie neu allokiert
+const WAVESHAPER_TANH_SOFT = (() => {
+    const c = new Float32Array(256);
+    for (let i = 0; i < 256; i++) c[i] = Math.tanh((i - 128) / 32);
+    return c;
+})();
+const WAVESHAPER_TANH_MED = (() => {
+    const c = new Float32Array(256);
+    for (let i = 0; i < 256; i++) c[i] = Math.tanh((i - 128) / 20);
+    return c;
+})();
+const WAVESHAPER_TANH_HARD = (() => {
+    const c = new Float32Array(256);
+    for (let i = 0; i < 256; i++) c[i] = Math.tanh((i - 128) / 10);
+    return c;
+})();
+
 // ===== Music =====
 let musicStarted = false;
 let musicPaused = true;
@@ -135,6 +152,7 @@ function ensureAudioContext() {
 
 window.addEventListener("click",      () => { ensureAudioContext(); });
 window.addEventListener("touchstart", () => { ensureAudioContext(); });
+window.addEventListener("keydown",    () => { ensureAudioContext(); }, { once: true });
 
 /* ================================================================
    GAME SOUNDS
@@ -148,15 +166,6 @@ function playObstacleSound(type) {
     const fn = obstacleSoundMap[type];
     if (!fn) { console.warn("No sound mapped for obstacle type:", type); return; }
     try { fn(); } catch (e) { console.warn("Obstacle sound error:", e); }
-}
-
-function makeNoiseBuffer(dur = 1) {
-    const ctxA = ensureAudioContext();
-    const sr   = ctxA.sampleRate;
-    const buf  = ctxA.createBuffer(1, Math.floor(sr * dur), sr);
-    const data = buf.getChannelData(0);
-    for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
-    return buf;
 }
 
 /* ── Collect ── */
@@ -176,9 +185,7 @@ function playCollect() {
     gain.gain.exponentialRampToValueAtTime(0.001, now + dur);
 
     const sh = ctxA.createWaveShaper();
-    const curve = new Float32Array(256);
-    for (let i = 0; i < 256; i++) curve[i] = Math.tanh((i - 128) / 32);
-    sh.curve = curve;
+    sh.curve = WAVESHAPER_TANH_SOFT;
 
     osc.connect(sh).connect(gain).connect(ctxA.destination);
     osc.start(now); osc.stop(now + dur);
@@ -201,9 +208,7 @@ function playOdoCollect() {
     gain.gain.exponentialRampToValueAtTime(0.001, now + dur);
 
     const sh = ctxA.createWaveShaper();
-    const curve = new Float32Array(256);
-    for (let i = 0; i < 256; i++) curve[i] = Math.tanh((i - 128) / 32);
-    sh.curve = curve;
+    sh.curve = WAVESHAPER_TANH_SOFT;
 
     osc.connect(sh).connect(gain).connect(ctxA.destination);
     osc.start(now); osc.stop(now + dur);
@@ -294,9 +299,7 @@ function playObstacleAbsperrung() {
     gain.gain.exponentialRampToValueAtTime(0.0001, now + dur);
 
     const sh = ctxA.createWaveShaper();
-    const curve = new Float32Array(256);
-    for (let i = 0; i < 256; i++) curve[i] = Math.tanh((i - 128) / 20);
-    sh.curve = curve;
+    sh.curve = WAVESHAPER_TANH_MED;
 
     osc.connect(sh).connect(gain).connect(ctxA.destination);
     osc.start(now); osc.stop(now + dur);
@@ -368,9 +371,7 @@ function playObstacleBomb() {
     gain.gain.exponentialRampToValueAtTime(0.0001, now + dur);
 
     const sh = ctxA.createWaveShaper();
-    const curve = new Float32Array(256);
-    for (let i = 0; i < 256; i++) curve[i] = Math.tanh((i - 128) / 10);
-    sh.curve = curve;
+    sh.curve = WAVESHAPER_TANH_HARD;
 
     osc.connect(sh).connect(gain).connect(ctxA.destination);
     osc.start(now); osc.stop(now + dur);
@@ -622,9 +623,7 @@ function playHitSound() {
     gain.gain.exponentialRampToValueAtTime(0.0001, now + dur);
 
     const sh = ctxA.createWaveShaper();
-    const curve = new Float32Array(256);
-    for (let i = 0; i < 256; i++) curve[i] = Math.tanh((i - 128) / 10);
-    sh.curve = curve;
+    sh.curve = WAVESHAPER_TANH_HARD;
 
     osc.connect(sh).connect(gain).connect(ctxA.destination);
     osc.start(now); osc.stop(now + dur);
