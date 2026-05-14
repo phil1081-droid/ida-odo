@@ -218,11 +218,6 @@ class Lump extends FallingEntity {
         }
     }
 
-    triggerHit(targetInstanceId) {
-        this.mode = "hit";
-        this.targetInstanceId = targetInstanceId;
-        if (typeof playHitSound === "function") playHitSound();
-    }
 }
 
 /* -----------------------------------------------------------
@@ -233,7 +228,7 @@ function _platschDrawRect(instance) {
     const drawW = DESIGN_W;
     const scale = drawW / firstFrame.width;
     const drawH = firstFrame.height * scale;
-    const PUDDLE_BOTTOM_PX = 322;
+    const PUDDLE_BOTTOM_PX = 644;
     const drawY = WORLD_H - PUDDLE_BOTTOM_PX * scale;
     return { drawX: 0, drawY, drawW, drawH };
 }
@@ -276,10 +271,10 @@ function spawnLump(instance) {
         Math.random() < ODO_SPAWN_PER_BOLL
     ) {
         instance.state.odo = new Odo({
-            x: Math.random() * (cssW - odoFallFrameW * 0.25),
+            x: Math.random() * (cssW - odoFallFrameW * 0.5),
             y: -odoFallFrameH,
-            w: odoFallFrameW * 0.25,
-            h: odoFallFrameH * 0.25,
+            w: odoFallFrameW * 0.5,
+            h: odoFallFrameH * 0.5,
             frames:      instance.odoFallFrames,
             rideFrames:  instance.odoRideFrames,
             grabFrames:  instance.odoGrabFrames,
@@ -301,7 +296,7 @@ function updateLumps(instance, dt) {
         const lump = lumps[i];
         if (lump.update(cssH, dt, instance)) {
             lumps[write++] = lump;
-        } else if (lump.dead && lump.state === "hit" && lump.targetInstanceId) {
+        } else if (lump.dead && lump.mode === "hit" && lump.targetInstanceId) {
             _lumpTransfer.push(lump);
         }
     }
@@ -311,7 +306,7 @@ function updateLumps(instance, dt) {
         const lump = _lumpTransfer[i];
         const targetInstance = gameInstances.find(inst => inst.suffix === lump.targetInstanceId);
         if (targetInstance) {
-            lump.state        = "fall";
+            lump.mode         = "fall";
             lump.dead         = false;
             lump.seen         = false;
             lump.decisionMade = false;

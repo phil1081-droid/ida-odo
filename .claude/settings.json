@@ -7,7 +7,23 @@
       "Bash(Start-Sleep -Seconds 2)",
       "Bash(Invoke-WebRequest -Uri http://localhost:8080 -UseBasicParsing -TimeoutSec 3)",
       "Bash(Select-Object -ExpandProperty StatusCode)",
-      "Bash(ssh -V)"
+      "Bash(ssh -V)",
+      "Bash(git config *)",
+      "Bash(python3 -c ' *)",
+      "Bash(python -c ' *)",
+      "Bash(magick --version)",
+      "Bash(convert --version)",
+      "PowerShell(taskkill /F /IM python.exe 2>$null)",
+      "PowerShell(Start-Process python -ArgumentList \"server.py\" -WorkingDirectory \"c:\\\\_DEV\\\\ida-odo\" -WindowStyle Normal)",
+      "PowerShell(Start-Process python -ArgumentList \"server.py\" -WorkingDirectory \"c:\\\\_DEV\\\\ida-odo\" -WindowStyle Normal -PassThru)",
+      "PowerShell(Get-Process python -ErrorAction SilentlyContinue)",
+      "Bash(curl -s http://localhost:8080/index.html)",
+      "Bash(python3 -c \"from PIL import Image; img = Image.open\\(r'c:\\\\_DEV\\\\ida-odo\\\\odo-grab_sprites.png'\\); print\\('size:', img.size\\)\")",
+      "PowerShell(Add-Type -AssemblyName System.Drawing; $img = [System.Drawing.Image]::FromFile\\('c:\\\\_DEV\\\\ida-odo\\\\odo-grab_sprites.png'\\); \"size: $\\($img.Width\\) x $\\($img.Height\\)\"; $img.Dispose\\(\\))",
+      "Bash(grep -i -a \"transparenz\\\\|farbverl\\\\|vereinheit\" \"C:\\\\Users\\\\ple\\\\.claude\\\\projects\\\\c---DEV-ida-odo\\\\9078ee61-8a6d-42fb-9295-0ec7b6389308.jsonl\" | grep -v \"^{\\\\\"parentUuid\" | head -30)",
+      "Read(//c/Users/ple/.claude/projects/c---DEV-ida-odo/**)",
+      "Bash(pip install *)",
+      "Bash(python -c \"import numpy; print\\(numpy.__version__\\)\")"
     ]
   }
 }

@@ -8,10 +8,10 @@
 class Entity {
 
     constructor(opts = {}) {
-        this.x = opts.x || 0;
-        this.y = opts.y || 0;
-        this.w = opts.w || 50;
-        this.h = opts.h || 50;
+        this.x = opts.x ?? 0;
+        this.y = opts.y ?? 0;
+        this.w = opts.w ?? 50;
+        this.h = opts.h ?? 50;
 
         this.frames = opts.frames || [];
         this.frameIndex = 0;

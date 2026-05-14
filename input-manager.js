@@ -194,7 +194,7 @@ function handleIdaHit(instance, targetInstanceId) {
     let hitTriggered = false;
 
     for (let e of instance.state.lumps) {
-        if (e.state === "hit" || e.decisionMade) continue;
+        if (e.mode === "hit" || e.decisionMade) continue;
 
         const collides =
             e.x + e.w > instance.state.ida.x + instance.state.ida.w * 0.15 &&
@@ -240,14 +240,12 @@ function togglePause() {
 })();
 
 /* ───────────────────────────────────────────────────────────
-   Joy-Con (auskommentiert, für Switch 2)
+   Joy-Con (für Switch 2 — per POST /input aktivieren)
 ─────────────────────────────────────────────────────────── */
-function pollEvents() { /* fetch('http://localhost:8080/events') ... */ }
 function applyJoyConEvent(data) {
     if (data.type === 'button') {
         if (data.button === '06') activateBoost();
         if (data.button === 'Y')  activateMagnet();
     }
 }
-pollEvents();
 

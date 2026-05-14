@@ -17,7 +17,7 @@ const OBSTACLE_TYPES = [
         scoreMalus: 1,
         sound: (ctx) => ctx.playObstacleSound(0),
         levelAppearance: 1,
-        initialChance: 0.03,
+        initialChance: 0.01,
         chanceIncrease: 0.001
     },
     {
@@ -27,7 +27,7 @@ const OBSTACLE_TYPES = [
         scoreMalus: 2,
         sound: (ctx) => ctx.playObstacleSound(1),
         levelAppearance: 2,
-        initialChance: 0.01,
+        initialChance: 0.005,
         chanceIncrease: 0.01
     },
     {
@@ -37,7 +37,7 @@ const OBSTACLE_TYPES = [
         scoreMalus: 0,
         sound: (ctx) => ctx.playObstacleSound(2),
         levelAppearance: 2,
-        initialChance: 0.01,
+        initialChance: 0.005,
         chanceIncrease: 0.01
     },
     {
@@ -47,7 +47,7 @@ const OBSTACLE_TYPES = [
         scoreMalus: 5,
         sound: (ctx) => ctx.playObstacleSound(3),
         levelAppearance: 4,
-        initialChance: 0.01,
+        initialChance: 0.005,
         chanceIncrease: 0.01
     },
     {
@@ -57,7 +57,7 @@ const OBSTACLE_TYPES = [
         scoreMalus: 7,
         sound: (ctx) => ctx.playObstacleSound(4),
         levelAppearance: 5,
-        initialChance: 0.01,
+        initialChance: 0.005,
         chanceIncrease: 0.02
     },
     {
@@ -122,11 +122,13 @@ class Obstacle extends FallingEntity {
     }
 
     checkCollision(ida) {
+        // ~3.5mm Kulanz-Inset pro Seite am Obstacle (rotierte Sprites sind kleiner als BBox)
+        const oi = 21;
         return (
-            this.x + this.w > ida.x + 12 &&
-            this.x < ida.x + ida.w - 12 &&
-            this.y + this.h > ida.y + 15 &&
-            this.y < ida.y + ida.h - 15
+            this.x + this.w - oi > ida.x + 12 &&
+            this.x + oi         < ida.x + ida.w - 12 &&
+            this.y + this.h - oi > ida.y + 15 &&
+            this.y + oi         < ida.y + ida.h - 15
         );
     }
 
@@ -232,8 +234,8 @@ function spawnObstacle(instance, type) {
     }
     const frame = instance.obstaclesFrames[type];
     const cssW  = cssWidth(instance);
-    const w     = frame.width  * 0.25;
-    const h     = frame.height * 0.25;
+    const w     = frame.width  * 0.5;
+    const h     = frame.height * 0.5;
 
     instance.state.obstacles.push(new Obstacle({
         type,

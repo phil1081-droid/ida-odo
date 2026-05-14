@@ -92,6 +92,7 @@ class Ida extends Entity {
         this.frozenUntil = 0;
         this.presentUntil = 0;
         this.pendingPuddleCleanup = false;  // Geschenk wartet auf Ende der Present-Animation
+        this.overflow = opts.overflow || null;
 
         // Pro-animation Indizes + timestamps (separat, damit Wechsel sauber ist)
         this._idx = {
@@ -297,8 +298,8 @@ class Ida extends Entity {
 
             if (now >= this.presentUntil) {
                 // Cleanup NACH der Animation
-                if (this.pendingPuddleCleanup && typeof overflow !== "undefined") {
-                    const removed = overflow.removeTop();
+                if (this.pendingPuddleCleanup && this.overflow) {
+                    const removed = this.overflow.removeTop();
                     if (removed && typeof playBulldozerSweep === "function") {
                         playBulldozerSweep();
                     }
@@ -437,11 +438,8 @@ class Ida extends Entity {
             let bx = this.x + (this.w / 2) - (boxW / 2);
             let by = this.y - boxH - 8;
 
-            const cW = ctx.canvas.width;
-            const cH = ctx.canvas.height;
-
             if (bx < 4) bx = 4;
-            if (bx + boxW > cW - 4) bx = cW - boxW - 4;
+            if (bx + boxW > DESIGN_W - 4) bx = DESIGN_W - boxW - 4;
             if (by < 4) by = this.y + this.h + 8;
 
             // Bubble BG
@@ -488,57 +486,30 @@ class Ida extends Entity {
 }
 
 function activateBoost() {
-    if (!state || !state.ida) return;
-    if (state.ida.state === "frozen") return;
+    const inst = (typeof gameInstances !== "undefined" && gameInstances.length)
+        ? gameInstances[0] : null;
+    const s = inst?.state;
+    if (!s?.ida || s.ida.state === "frozen") return;
 
     const now = Date.now();
+    s.boost.active = true;
+    s.boost.until  = now + 1000;
+    if (typeof s.ida.speed === "number") s.ida.speed = s.boostSpeed ?? 8;
 
-    // Re-trigger erlaubt: verlängert Boost
-    state.boost.active = true;
-    state.boost.until = now + 1000;
-
-    // Fallback: falls speed direkt gesetzt wird
-    if (typeof state.ida.speed === "number") {
-        state.ida.speed = state.boostSpeed ?? 8;
-    }
-
-    // Audio (defensiv)
-    try {
-        ensureAudioContext?.();
-        playBoostSound?.();
-    } catch {}
+    try { ensureAudioContext?.(); playBoostSound?.(); } catch {}
 }
 
 function activateMagnet() {
-    if (!state || !state.ida) return;
-    if (state.ida.state === "frozen") return;
+    const inst = (typeof gameInstances !== "undefined" && gameInstances.length)
+        ? gameInstances[0] : null;
+    const s = inst?.state;
+    if (!s?.ida || s.ida.state === "frozen") return;
 
     const now = Date.now();
+    s.magnet.active = true;
+    s.magnet.until  = now + 3000;
 
-    state.magnet.active = true;
-    state.magnet.until = now + 3000;
-
-    try {
-        ensureAudioContext?.();
-        playMagnetSound?.();
-    } catch {}
-}
-
-function updateBoostAndMagnet(state) {
-    const now = Date.now();
-
-    if (state.boost.active && now > state.boost.until) {
-        state.boost.active = false;
-
-        // Fallback-Speed zurücksetzen
-        if (state.ida && typeof state.ida.speed === "number") {
-            state.ida.speed = state.normalSpeed ?? 4;
-        }
-    }
-
-    if (state.magnet.active && now > state.magnet.until) {
-        state.magnet.active = false;
-    }
+    try { ensureAudioContext?.(); playMagnetSound?.(); } catch {}
 }
 
 window.Ida = Ida;

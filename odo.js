@@ -62,7 +62,7 @@ class Odo extends FallingEntity {
         else return false;
     }
 
-    update(cssH, gameCtx) {
+    update(cssH, dt, gameCtx) {
         const now = performance.now();
 
         // === FALL-ZUSTAND ===
@@ -111,8 +111,11 @@ class Odo extends FallingEntity {
                 this.lastAnimTime = now;
             }
 
-            // Nach links fahren
-            this.x = Math.max(this.x - 2, 0);
+            // Y immer mit Ida synchron halten
+            if (gameCtx.state.ida) this.y = gameCtx.state.ida.y;
+
+            // Nach links fahren (dt-skaliert: 2px bei 60fps ≙ dt*0.12)
+            this.x = Math.max(this.x - (dt || 16.67) * 0.12, 0);
 
             // Linksrand erreicht → Greifmodus
             if (this.x <= 0) {
@@ -140,7 +143,7 @@ class Odo extends FallingEntity {
             }
              */
             
-            this.frameIndex += 0.6
+            this.frameIndex += (dt || 16.67) * 0.036;
 
             // Animation fertig → Odo verschwindet
             if (Math.floor(this.frameIndex) >= this.grabFrames.length) {
@@ -152,12 +155,11 @@ class Odo extends FallingEntity {
             const frame = this.grabFrames[Math.floor(this.frameIndex)];
             if (!frame) return true;
 
-            const scale = 0.5;
-            const drawW = frame.width * scale;
-            const drawH = frame.height * scale;
+            const drawW = frame.width;
+            const drawH = frame.height;
 
             const drawX = this.x;
-            const drawY = this.y - frame.height * 0.4;
+            const drawY = this.y - frame.height * 0.8;
 
             const grabStart = { x: drawX + drawW * 0.05, y: drawY + drawH * 0.95 };
             const grabEnd   = { x: drawX + drawW * 0.9,  y: drawY + drawH * 0.25 };
@@ -230,10 +232,9 @@ class Odo extends FallingEntity {
             drawH = this.h * 0.6;
             drawY = this.y - drawH * 0.15;
         } else if (this.state === "grab") {
-            const scale = 0.5;
-            drawW = frame.width * scale;
-            drawH = frame.height * scale;
-            drawY = this.y - frame.height * 0.4;
+            drawW = frame.width;
+            drawH = frame.height;
+            drawY = this.y - frame.height * 0.8;
         }
 
         ctx.drawImage(frame, drawX, drawY, drawW, drawH);
@@ -264,11 +265,8 @@ class Odo extends FallingEntity {
             }
 
             const margin = 6;
-            const canvasW = ctx.canvas.width;
             if (bx < margin) bx = margin;
-            if (bx + boxW > canvasW - margin) {
-                bx = canvasW - boxW - margin;
-            }
+            if (bx + boxW > DESIGN_W - margin) bx = DESIGN_W - boxW - margin;
 
             ctx.globalAlpha = 0.95;
             ctx.fillStyle = "#fff";

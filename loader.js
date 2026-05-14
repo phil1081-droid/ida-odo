@@ -33,6 +33,9 @@ class LevelLoader {
         this.fallbackBg = null;
         this.fallbackMusic = null;
 
+        this.bgCount    = 0;  // Anzahl vorhandener BG-Dateien (ermittelt beim Laden)
+        this.musicCount = 0;  // Anzahl vorhandener Musik-Dateien
+
         this._initFallbacks();
     }
 
@@ -65,31 +68,41 @@ class LevelLoader {
     async _initFallbacks() {
         this.fallbackBg    = await this._loadImage(`${this.prefixBg}001${this.extBg}`);
         this.fallbackMusic = await this._loadAudio(`${this.prefixMusic}001${this.extMusic}`);
-        if (this.fallbackBg)    this.bgCache.set(1, this.fallbackBg);
-        if (this.fallbackMusic) this.musicCache.set(1, this.fallbackMusic);
+        if (this.fallbackBg)    { this.bgCache.set(1, this.fallbackBg);    this.bgCount    = 1; }
+        if (this.fallbackMusic) { this.musicCache.set(1, this.fallbackMusic); this.musicCount = 1; }
     }
 
     async loadBgForLevel(level) {
         if (this.bgCache.has(level)) return this.bgCache.get(level);
-        for (let i = 0; i < 5; i++) {
-            const tryLevel = Math.max(1, level - i);
-            const img = await this._loadImage(`${this.prefixBg}${this._indexToName(tryLevel)}${this.extBg}`);
-            if (img) { this.bgCache.set(level, img); return img; }
+        const img = await this._loadImage(`${this.prefixBg}${this._indexToName(level)}${this.extBg}`);
+        if (img) {
+            this.bgCache.set(level, img);
+            this.bgCount = Math.max(this.bgCount, level);
+            return img;
         }
-        if (this.bgCache.has(1)) return this.bgCache.get(1);
-        for (const img of this.bgCache.values()) if (img) return img;
+        // Datei fehlt → Wrap-around mit bekannter Anzahl
+        if (this.bgCount > 0) {
+            const wrapped = ((level - 1) % this.bgCount) + 1;
+            const cached = this.bgCache.get(wrapped);
+            if (cached) return cached;
+        }
         return this.fallbackBg;
     }
 
     async loadMusicForLevel(level) {
         if (this.musicCache.has(level)) return this.musicCache.get(level);
-        for (let i = 0; i < 5; i++) {
-            const tryLevel = Math.max(1, level - i);
-            const audio = await this._loadAudio(`${this.prefixMusic}${this._indexToName(tryLevel)}${this.extMusic}`);
-            if (audio) { this.musicCache.set(level, audio); return audio; }
+        const audio = await this._loadAudio(`${this.prefixMusic}${this._indexToName(level)}${this.extMusic}`);
+        if (audio) {
+            this.musicCache.set(level, audio);
+            this.musicCount = Math.max(this.musicCount, level);
+            return audio;
         }
-        if (this.musicCache.has(1)) return this.musicCache.get(1);
-        for (const a of this.musicCache.values()) if (a) return a;
+        // Datei fehlt → Wrap-around mit bekannter Anzahl
+        if (this.musicCount > 0) {
+            const wrapped = ((level - 1) % this.musicCount) + 1;
+            const cached = this.musicCache.get(wrapped);
+            if (cached) return cached;
+        }
         return this.fallbackMusic;
     }
 
@@ -209,8 +222,7 @@ function extractSpriteFrames(img, cols, rows, chromaPreset) {
             tctx.clearRect(0, 0, frameW, frameH);
             tctx.drawImage(img, c * frameW, r * frameH, frameW, frameH, 0, 0, frameW, frameH);
             let id = tctx.getImageData(0, 0, frameW, frameH);
-            id = chromaKeyImageData(id, chromaPreset);
-            tctx.putImageData(id, 0, 0);
+            if (chromaPreset) { id = chromaKeyImageData(id, chromaPreset); tctx.putImageData(id, 0, 0); }
             const cv = document.createElement("canvas");
             cv.width = frameW; cv.height = frameH;
             cv.getContext("2d").drawImage(tmp, 0, 0);
@@ -238,8 +250,7 @@ function loadMultiFrameImages(src, rows, chromaPreset, callback, cols = 8) {
                     offCtx.clearRect(0, 0, frameW, frameH);
                     offCtx.drawImage(img, c * frameW, r * frameH, frameW, frameH, 0, 0, frameW, frameH);
                     let imgData = offCtx.getImageData(0, 0, frameW, frameH);
-                    imgData = chromaKeyImageData(imgData, chromaPreset);
-                    offCtx.putImageData(imgData, 0, 0);
+                    if (chromaPreset) { imgData = chromaKeyImageData(imgData, chromaPreset); offCtx.putImageData(imgData, 0, 0); }
                     const cv = document.createElement("canvas");
                     cv.width = frameW; cv.height = frameH;
                     cv.getContext("2d").drawImage(off, 0, 0);
@@ -302,7 +313,7 @@ function preloadIdaWalk(instance) {
         }
         const img = new Image();
         img.onload = () => {
-            const { frames, frameW, frameH } = extractSpriteFrames(img, 8, 14, CHROMA_PRESETS.ida);
+            const { frames, frameW, frameH } = extractSpriteFrames(img, 8, 14, null);
             SpritePool.ida.yellow = frames;
             SpritePool.ida.red    = frames.map(f => recolorYellowToRed(f));
             idaWalkFrameW = frameW; idaWalkFrameH = frameH;
@@ -324,7 +335,7 @@ function preloadIdaIce(instance) {
         }
         const img = new Image();
         img.onload = () => {
-            const { frames, frameW, frameH } = extractSpriteFrames(img, 8, 2, CHROMA_PRESETS.ida);
+            const { frames, frameW, frameH } = extractSpriteFrames(img, 8, 2, null);
             SpritePool.idaIce.yellow = frames;
             SpritePool.idaIce.red    = frames.map(f => recolorYellowToRed(f));
             idaIceFrameW = frameW; idaIceFrameH = frameH;
@@ -346,7 +357,7 @@ function preloadIdaPresent(instance) {
         }
         const img = new Image();
         img.onload = () => {
-            const { frames, frameW, frameH } = extractSpriteFrames(img, 8, 13, CHROMA_PRESETS.ida);
+            const { frames, frameW, frameH } = extractSpriteFrames(img, 8, 13, null);
             SpritePool.idaPresent.yellow = frames;
             SpritePool.idaPresent.red    = frames.map(f => recolorYellowToRed(f));
             idaPresentFrameW = frameW; idaPresentFrameH = frameH;
@@ -377,34 +388,34 @@ let platschFrameW  = 390;
 let platschFrameH  = 844;
 
 function initSpriteLoading() {
-    loadMultiFrameImages("odo-fall_sprites.png", 13, CHROMA_PRESETS.odo, (frames, frameW, frameH) => {
+    loadMultiFrameImages("odo-fall_sprites.png", 13, null, (frames, frameW, frameH) => {
         SpritePool.odo.fall.yellow = frames;
         SpritePool.odo.fall.red    = frames.map(f => recolorYellowToRed(f));
         odoFallFrameW = frameW; odoFallFrameH = frameH;
     });
 
-    loadMultiFrameImages("odo-ride_sprites.png", 5, CHROMA_PRESETS.ride, (frames) => {
+    loadMultiFrameImages("odo-ride_sprites.png", 5, null, (frames) => {
         SpritePool.odo.ride.yellow = frames;
         SpritePool.odo.ride.red    = frames.map(f => recolorYellowToRed(f));
     });
 
-    loadMultiFrameImages("odo-grab_sprites.png", 29, CHROMA_PRESETS.grab, (frames) => {
+    loadMultiFrameImages("odo-grab_sprites.png", 29, null, (frames) => {
         SpritePool.odo.grab.yellow = frames;
         SpritePool.odo.grab.red    = frames.map(f => recolorYellowToRed(f));
     });
 
-    loadMultiFrameImages("bollen_sprites.png", 11, CHROMA_PRESETS.lump, (frames, frameW, frameH) => {
+    loadMultiFrameImages("bollen_sprites.png", 11, null, (frames, frameW, frameH) => {
         SpritePool.lump = frames;
         lumpFrameW = frameW; lumpFrameH = frameH;
         lumpTotalFrames = frames.length;
     });
 
-    loadMultiFrameImages("platsch_sprites.png", 15, CHROMA_PRESETS.platsch, (frames, frameW, frameH) => {
+    loadMultiFrameImages("platsch_sprites.png", 15, null, (frames, frameW, frameH) => {
         SpritePool.platsch = frames;
         platschFrameW = frameW; platschFrameH = frameH;
     });
 
-    loadMultiFrameImages("obstacles.png", 2, CHROMA_PRESETS.obstacle, (frames) => {
+    loadMultiFrameImages("obstacles.png", 2, null, (frames) => {
         SpritePool.obstacles = frames;
     }, 4);
 }

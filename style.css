@@ -93,6 +93,15 @@ html, body {
     color:#000;
 }
 
+#startHint {
+    margin-top:16px;
+    font-family:Arial,sans-serif;
+    font-size:11px;
+    color:#ddd;
+    line-height:1.7;
+    white-space:nowrap;
+}
+
 .pause-btn {
     position: absolute;
     top: 12px;

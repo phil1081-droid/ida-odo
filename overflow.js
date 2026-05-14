@@ -11,7 +11,7 @@
 ----------------------------------- */
 
 // Wie viele Pixel rückt das Spiel pro Pfütze nach oben?
-// = sichtbare Pfützen-Höhe (322 - 212 = 110px im Frame, skaliert auf DESIGN_W)
+// = sichtbare Pfützen-Höhe (644 - 424 = 220px im Frame, skaliert auf DESIGN_W)
 // Wird beim ersten addPuddle() aus den echten Frame-Dimensionen berechnet.
 const PUDDLE_STACK_STEP_DEFAULT = 80; // px, Fallback bis Frames bekannt sind
 
@@ -77,8 +77,9 @@ class OverflowManager {
         const drawW  = DESIGN_W;
         const drawH  = Math.round(lastFrame.height * scale);
 
-        const PUDDLE_TOP_PX    = 212;
-        const PUDDLE_BOTTOM_PX = 322;
+        const PUDDLE_TOP_PX    = 424;
+        const PUDDLE_BOTTOM_PX = 644;
+        // 0.275: sichtbare Pfützenzone macht ~27.5 % der skalierten Frame-Höhe aus
         this._stackStep = Math.round((PUDDLE_BOTTOM_PX - PUDDLE_TOP_PX) * scale * 0.275);
 
         // Platzhalter-Canvas (wird von commitPuddle befüllt)
@@ -169,7 +170,7 @@ class OverflowManager {
         const mctx = mc.getContext('2d');
         mctx.clearRect(0, 0, mc.width, mc.height);
 
-        const PUDDLE_BOTTOM_PX = 322;
+        const PUDDLE_BOTTOM_PX = 644;
         for (let i = 0; i < this.puddleStack.length; i++) {
             const item = this.puddleStack[i];
             if (!item || !item.canvas) continue;

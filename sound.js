@@ -43,11 +43,9 @@ const MUSIC_MAX_RATE  = 2;
    Wert — wie Bauteiltoleranzen in echter analoger Hardware.
 
    Hilfsfunktionen:
-     af(freq)  → Frequenz  mit ±40 % Jitter  ← KRASS (Test!)
-     at(time)  → Zeitdauer mit ±50 % Jitter  ← KRASS (Test!)
-     ag(gain)  → Lautstärke mit ±60 % Jitter ← KRASS (Test!)
-
-   Zum Kalibrieren später: af→0.012, at→0.022, ag→0.025
+     af(freq)  → Frequenz   ±0.6 %
+     at(time)  → Zeitdauer  ±1.0 %
+     ag(gain)  → Lautstärke ±1.2 %
 ================================================================ */
 
 let _analogSeed = 0xDEADBEEF;
@@ -69,11 +67,9 @@ function nextAnalog(scale) {
     return val;
 }
 
-// !! TESTMODUS: extrem aufgedreht zum Prüfen ob System greift !!
-// Später zurückdrehen auf: af→0.012, at→0.022, ag→0.025
-function af(freq) { return freq * (1 + nextAnalog(0.40)); }  // ±40 % → Tonhöhe springt wild
-function at(time) { return time * (1 + nextAnalog(0.50)); }  // ±50 % → Länge stark variiert
-function ag(gain) { return gain * (1 + nextAnalog(0.60)); }  // ±60 % → Lautstärke schwankt stark
+function af(freq) { return freq * (1 + nextAnalog(0.006)); }  // ±0.6 % Tonhöhe
+function at(time) { return time * (1 + nextAnalog(0.010)); }  // ±1.0 % Länge
+function ag(gain) { return gain * (1 + nextAnalog(0.012)); }  // ±1.2 % Lautstärke
 
 /* ================================================================ */
 

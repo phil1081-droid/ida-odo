@@ -18,9 +18,8 @@ let frameEl;
 let overlay;
 let startButton;
 
-let paused          = false;
-let lastLevelUpTime = 0;
-let gameInstances   = [];
+let paused        = false;
+let gameInstances = [];
 
 const res = loader.getCurrentResources();
 bgMusic = res.music;
@@ -407,7 +406,7 @@ function updateAll(instance, dt) {
 
     const scoreBeforeOdo = state.score;
     if (state.odo) {
-        const alive = state.odo.update(cssHeight(instance), {
+        const alive = state.odo.update(cssHeight(instance), dt, {
             state,
             lumpsParam: state.lumps,
             playOdoCollect,
@@ -475,10 +474,10 @@ function updateAll(instance, dt) {
 
 function checkLevelUp(instance) {
     const now = performance.now();
-    if (now - lastLevelUpTime < LEVELUP_DEBOUNCE_MS) return;
+    if (now - (instance.lastLevelUpTime || 0) < LEVELUP_DEBOUNCE_MS) return;
     if (instance.state.score < instance.state.nextLevelScore) return;
 
-    lastLevelUpTime = now;
+    instance.lastLevelUpTime = now;
     instance.state.level++;
     instance.state.nextLevelScore  += 100;
     instance.state.fallSpeedMultiplier *= LEVEL_SPEED_FACTOR;
@@ -525,23 +524,6 @@ const logic = {
         updateAll(instance, dt);
     }
 };
-
-/* =======================================================
-   Obstacle-Kollision: Shake auslösen
-   (wird von obstacle.js über onCollide→gameCtx aufgerufen)
-   Wir patchen onCollide nach createInstance.
-======================================================= */
-function patchObstacleShake(instance) {
-    const origOnOverflow = instance.overflow.onOverflow;
-    // Shake wird in updateObstacles ausgelöst — dafür überschreiben wir
-    // updateObstacles lokal für diese Instanz nicht, sondern hängen uns
-    // an den Score-Abfall: wenn Score sinkt → Shake.
-    instance._lastScore = 0;
-}
-
-// Im updateAll bereits: Score-Abfall → Shake
-// Wir ergänzen das im updateAll direkt:
-const _origUpdateAll = updateAll;
 
 /* =======================================================
    Game Over
@@ -653,14 +635,15 @@ async function tryAutoStartForInstance(instance) {
         instance.state.nextLevelScore = 100;
 
         instance.state.ida = new Ida({
-            x: Math.max(0, (cssWidth(instance) - (idaWalkFrameW || 100)) / 2),
+            x: Math.max(0, (cssWidth(instance) - (idaWalkFrameW / 2 || 100)) / 2),
             y: cssHeight(instance) - 40,
-            w: idaWalkFrameW || 100,
-            h: idaWalkFrameH || 100,
+            w: idaWalkFrameW / 2 || 100,
+            h: idaWalkFrameH / 2 || 100,
             walkFrames:    instance.idaWalkFrames    || [],
             frozenFrames:  instance.idaIceFrames     || [],
             presentFrames: instance.idaPresentFrames || [],
-            speed: 4
+            speed: 4,
+            overflow: instance.overflow
         });
         instance.state.ida.posLimitLeft  = 0;
         instance.state.ida.posLimitRight = cssWidth(instance) - instance.state.ida.w;

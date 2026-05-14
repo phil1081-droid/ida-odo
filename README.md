@@ -2,8 +2,6 @@
 
 Ein 2D-Arcade-Spiel im Browser — gebaut mit Vanilla JavaScript, HTML5 Canvas und Web Audio API. Keine Build-Tools, keine Abhängigkeiten.
 
-*In stillem Gedenken an Dietmar Keicher.*
-
 ---
 
 ## Spielprinzip

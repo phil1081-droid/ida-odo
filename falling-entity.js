@@ -33,33 +33,8 @@ class FallingEntity extends Entity {
         this.animTimer = 0;
     }
 
-    baseUpdate(cssH) {
-        if (this.dead) return false;
-
-        if (this.state === "fall") {
-            this.y += this.speed;
-            this.updateAnimation(0.3);
-            // Unten raus?
-            if (this.y > cssH + this.h) {
-                this.dead = true;
-                return false;
-            }
-        } else if (this.state === "hit") {
-            // Aufwärtsbewegung mit dreifacher Geschwindigkeit
-            this.y -= this.speed * this.hitSpeedMultiplier;
-            this.updateAnimation(0.3);
-            // Oben raus? -> Bereit für Instanzwechsel
-            if (this.y < -this.h) {
-                this.dead = true; // Markiere als tot, wird in main.js übertragen
-                return false;
-            }
-        }
-
-        return true;
-    }
-
     update(cssH) {
-        return this.baseUpdate(cssH);
+        return true;
     }
 
     updateAnimation(speedMultiplier = 1) {
@@ -71,14 +46,5 @@ class FallingEntity extends Entity {
         }
     }
     
-    // Methode zum Auslösen des Hits
-    triggerHit(targetInstanceId) {
-        this.state = "hit";
-        this.targetInstanceId = targetInstanceId; // Speichere Zielinstanz
-        // Optional: Visueller Effekt oder Sound
-        if (typeof playHitSound === "function") {
-            playHitSound();
-        }
-    }
 }
 window.FallingEntity = FallingEntity;
