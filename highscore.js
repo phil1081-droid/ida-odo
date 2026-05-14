@@ -218,24 +218,24 @@ function _buildOverlayDOM() {
 
     overlay.innerHTML = `
         <div id="hs-box">
-            <h2>🏆 Tageshighscore</h2>
+            <h2>${t("hsTitle")}</h2>
             <div id="hs-day-label"></div>
             <div id="hs-score-line"></div>
             <div id="hs-rank-line"></div>
             <div id="hs-name-row">
                 <input id="hs-name-input" type="text" maxlength="20"
-                       placeholder="Dein Name" autocomplete="off"
+                       placeholder="${t("hsNamePh")}" autocomplete="off"
                        autocorrect="off" autocapitalize="words" />
-                <button id="hs-submit-btn">Eintragen</button>
+                <button id="hs-submit-btn">${t("hsSubmit")}</button>
             </div>
             <div id="hs-saved-note"></div>
             <table id="hs-table">
                 <thead><tr>
-                    <th>#</th><th>Name</th><th>Punkte</th>
+                    <th>#</th><th>Name</th><th>${t("hsColPoints")}</th>
                 </tr></thead>
                 <tbody id="hs-tbody"></tbody>
             </table>
-            <button id="hs-restart-btn">Nochmal spielen</button>
+            <button id="hs-restart-btn">${t("hsRestart")}</button>
         </div>
     `;
 
@@ -252,7 +252,7 @@ function _renderTable(entries, highlightName, highlightScore) {
 
     if (!entries.length) {
         tbody.innerHTML = `<tr><td colspan="3" style="text-align:center;color:#666;padding:12px">
-            Noch keine Einträge heute</td></tr>`;
+            ${t("hsNoEntries")}</td></tr>`;
         return;
     }
 
@@ -278,7 +278,7 @@ function _esc(s) {
 ---------------------------------------------------------- */
 
 function _todayLabel() {
-    return new Date().toLocaleDateString("de-DE", {
+    return new Date().toLocaleDateString(t("hsDateLocale"), {
         weekday: "long", day: "numeric", month: "long"
     });
 }
@@ -304,12 +304,12 @@ function showHighscoreOverlay(score, delayMs = 3500) {
 
     // Inhalte befüllen
     dayEl.textContent   = _todayLabel();
-    scoreEl.textContent = score + " Punkte";
+    scoreEl.textContent = t("hsPoints", { n: score });
 
     const rank = hsRank(score);
     rankEl.textContent = rank
-        ? `Platz ${rank} in der Tagesliste!`
-        : "Nicht unter den Top " + HS_MAX + " heute";
+        ? t("hsRank", { rank })
+        : t("hsNotInTop", { n: HS_MAX });
 
     // Gecachten Namen vorbelegen
     nameInput.value = hsCachedName();
@@ -327,13 +327,13 @@ function showHighscoreOverlay(score, delayMs = 3500) {
         nameInput.disabled = true;
 
         const entries = hsAddEntry(name, score);
-        savedNote.textContent = "✓ Gespeichert!";
+        savedNote.textContent = t("hsSaved");
         _renderTable(entries, name, score);
 
         // Rank aktualisieren
         const newRank = entries.findIndex(e => e.name === name && e.score === score);
         rankEl.textContent = newRank >= 0
-            ? `Platz ${newRank + 1} in der Tagesliste!`
+            ? t("hsRank", { rank: newRank + 1 })
             : rankEl.textContent;
     };
 

@@ -291,7 +291,7 @@ function drawScore(instance) {
     c.fillStyle = '#000';
     c.font      = _SCORE_FONT;
     c.textAlign = "left";
-    c.fillText("Erde gesammelt: " + instance.state.score, 12, 24);
+    c.fillText(t("scoreLabel") + " " + instance.state.score, 12, 24);
 }
 
 function drawObstacles(instance) {

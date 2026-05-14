@@ -203,7 +203,7 @@ function startIdaPresentAnimation(state) {
 
 function triggerIdaFrozen(state) {
     if (!state.ida) return;
-    if (typeof state.ida.showSpeech === "function") state.ida.showSpeech("brrr.", 2000);
+    if (typeof state.ida.showSpeech === "function") state.ida.showSpeech(t("frozenSpeech"), 2000);
     state.ida.triggerFrozen(60);
 }
 

@@ -31,21 +31,7 @@ class Odo extends FallingEntity {
             textWidth: 0
         };
         
-        this.rideTexts = [
-            "Danke, Ida!",
-            "Endlich raus aus dem Dreck!",
-            "Aua, mein Kopf!",
-            "Jetzt eine Dusche!",
-            "Ich hab den Drehwurm.",
-            "Mann, schon wieder dreckig!",
-            "Gut gemacht, Ida!",
-            "Super, Ida!",
-            "Ich hab Hunger!",
-            "Seid gegrüßt, meine Lieben!",
-            "Da geht ja der Motor kaputt",
-            "Bin hingefallen, au, aua!",
-            "Autsch!"
-        ];
+        this.rideTexts = tArr("rideTexts");
         
         this.speechBaseY = null; // Referenz-Y für Speechbubble
     }
