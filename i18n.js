@@ -33,6 +33,16 @@ function _detectLang() {
     if (nav.startsWith("ko")) return "ko";
     if (nav.startsWith("id")) return "id";
     if (nav.startsWith("he")) return "he";
+    if (nav.startsWith("hi")) return "hi";
+    if (nav.startsWith("ur")) return "ur";
+    if (nav.startsWith("bn")) return "bn";
+    if (nav.startsWith("ro")) return "ro";
+    if (nav.startsWith("vi")) return "vi";
+    if (nav.startsWith("fa")) return "fa";
+    if (nav.startsWith("sw")) return "sw";
+    if (nav.startsWith("hr")) return "hr";
+    if (nav.startsWith("sr")) return "hr";
+    if (nav.startsWith("bs")) return "hr";
     return "en";
 }
 
@@ -40,7 +50,7 @@ const LANG = _detectLang();
 window.LANG = LANG;
 
 // RTL-Sprachen: dir-Attribut sofort setzen (vor DOMContentLoaded)
-const RTL_LANGS = new Set(["ar", "he"]);
+const RTL_LANGS = new Set(["ar", "he", "ur", "fa"]);
 if (RTL_LANGS.has(LANG)) {
     document.documentElement.setAttribute("dir", "rtl");
 }

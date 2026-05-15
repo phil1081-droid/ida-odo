@@ -1,0 +1,27 @@
+DirectoryIndex index.html
+Options -Indexes
+
+# Zugriff auf alle Dateien und Unterordner erlauben
+<IfModule mod_authz_core.c>
+    <FilesMatch ".*">
+        Require all granted
+    </FilesMatch>
+</IfModule>
+
+# MIME-Types sicherstellen
+<IfModule mod_mime.c>
+    AddType application/javascript .js
+    AddType text/css               .css
+    AddType application/json       .json
+    AddType audio/mpeg             .mp3
+</IfModule>
+
+# Caching für Assets
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType image/png                 "access plus 7 days"
+    ExpiresByType image/jpeg                "access plus 7 days"
+    ExpiresByType audio/mpeg                "access plus 7 days"
+    ExpiresByType application/javascript    "access plus 1 hour"
+    ExpiresByType text/css                  "access plus 1 hour"
+</IfModule>

@@ -67,9 +67,9 @@ function nextAnalog(scale) {
     return val;
 }
 
-function af(freq) { return freq * (1 + nextAnalog(0.006)); }  // ±0.6 % Tonhöhe
-function at(time) { return time * (1 + nextAnalog(0.010)); }  // ±1.0 % Länge
-function ag(gain) { return gain * (1 + nextAnalog(0.012)); }  // ±1.2 % Lautstärke
+function af(freq) { return freq * (1 + nextAnalog(0.014)); }  // ±1.4 % Tonhöhe
+function at(time) { return time * (1 + nextAnalog(0.022)); }  // ±2.2 % Länge
+function ag(gain) { return gain * (1 + nextAnalog(0.025)); }  // ±2.5 % Lautstärke
 
 /* ================================================================ */
 

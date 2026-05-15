@@ -1,0 +1,14 @@
+Options -Indexes
+
+# Apache 2.2
+Order allow,deny
+Allow from all
+
+# Apache 2.4
+<IfModule mod_authz_core.c>
+    Require all granted
+</IfModule>
+
+<IfModule mod_mime.c>
+    AddType application/javascript .js
+</IfModule>
