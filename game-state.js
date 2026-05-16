@@ -59,4 +59,7 @@ function GameState() {
 
     /* --- music --- */
     this.musicPlaying = false;
+
+    /* --- timing --- */
+    this.gameStartTime = 0;
 }

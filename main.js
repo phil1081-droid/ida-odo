@@ -395,7 +395,7 @@ function updateAll(instance, dt) {
 
     spawnFallingThing(instance, state.level);
     state.ida.update();
-    state.ida.y = Math.min(state.ida.y, cssHeight(instance) - state.ida.h);
+    state.ida.y = cssHeight(instance) - state.ida.h;
 
     // Parallax
     const BG_MAX_OFFSET = 30;
@@ -654,7 +654,8 @@ async function tryAutoStartForInstance(instance) {
 
         instance.startAnim.stop();
         overlayEl.style.display = "none";
-        instance.state.gameStarted = true;
+        instance.state.gameStarted  = true;
+        instance.state.gameStartTime = performance.now();
         cacheInstanceSize(instance);
         // Remove start overlay canvas after game loop has drawn its first frame
         requestAnimationFrame(() => requestAnimationFrame(() => {

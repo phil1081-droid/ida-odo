@@ -101,7 +101,10 @@ class LevelLoader {
         if (this.musicCount > 0) {
             const wrapped = ((level - 1) % this.musicCount) + 1;
             const cached = this.musicCache.get(wrapped);
-            if (cached) return cached;
+            if (cached) {
+                this.musicCache.set(level, cached);  // unter neuer Level-Nr. cachen
+                return cached;
+            }
         }
         return this.fallbackMusic;
     }

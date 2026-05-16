@@ -87,8 +87,8 @@ const OBSTACLE_TYPES = [
         scoreMalus: 0,
         sound: (ctx) => ctx.playObstacleSound(7),
         levelAppearance: 3,
-        initialChance: 0.02,
-        chanceIncrease: 0.02
+        initialChance: 0.01,
+        chanceIncrease: 0.01
     }
 ];
 
@@ -248,6 +248,12 @@ function spawnObstacle(instance, type) {
 }
 
 function spawnFallingThing(instance, level) {
+    // Erste 10 Sekunden: keine Hindernisse — Eingewöhnungsphase
+    if (performance.now() - (instance.state.gameStartTime || 0) < 10000) {
+        spawnLump(instance);
+        return;
+    }
+
     const effectiveLevel = level >= 1 ? level : 1;
     const chances = getObstacleChancesForLevel(effectiveLevel);
 

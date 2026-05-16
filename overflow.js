@@ -131,6 +131,11 @@ class OverflowManager {
                 const c = this.puddleStack[i].canvas;
                 c.getContext("2d").drawImage(lastFrame, 0, 0, drawW, drawH);
                 this.puddleStack[i].pending = false;
+                if (this.puddleStack[i].removeOnCommit) {
+                    // Geschenk hatte keine committed Pfütze gefunden → jetzt nachholen
+                    this.puddleStack.splice(i, 1);
+                    this.totalPuddles = Math.max(0, this.totalPuddles - 1);
+                }
                 this._rebuildMerged();
                 break;
             }
@@ -200,6 +205,14 @@ class OverflowManager {
                 this.puddleStack.splice(i, 1);
                 this.totalPuddles = Math.max(0, this.totalPuddles - 1);
                 this._rebuildMerged();
+                return true;
+            }
+        }
+        // Alle Slots noch pending: ältesten für verzögertes Entfernen markieren.
+        // commitPuddle() entfernt ihn sobald die Platsch-Animation endet.
+        for (let i = 0; i < this.puddleStack.length; i++) {
+            if (!this.puddleStack[i].removeOnCommit) {
+                this.puddleStack[i].removeOnCommit = true;
                 return true;
             }
         }

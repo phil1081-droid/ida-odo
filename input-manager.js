@@ -155,6 +155,8 @@ class InputManager {
     ─────────────────────────────── */
 
     _onKeyDown(e) {
+        const tag = document.activeElement?.tagName;
+        if (tag === "INPUT" || tag === "TEXTAREA") return;
         if (e.repeat || this._disabled[0] || this._disabled[1]) return;
         switch (e.code) {
             case "ArrowLeft":  this._setLeft(true, 0);        e.preventDefault(); break;
@@ -171,6 +173,8 @@ class InputManager {
     }
 
     _onKeyUp(e) {
+        const tag = document.activeElement?.tagName;
+        if (tag === "INPUT" || tag === "TEXTAREA") return;
         switch (e.code) {
             case "ArrowLeft":  this.left[0]  = false; break;
             case "ArrowRight": this.right[0] = false; break;
