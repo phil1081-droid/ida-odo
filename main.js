@@ -628,7 +628,11 @@ async function tryAutoStartForInstance(instance) {
 
         ensureAudioContext();
         audioAllowed = true;
-        startMusicForLevel(1);
+        if (loader.getCurrentResources().music) {
+            startMusicForLevel(1);
+        } else {
+            loader.loadResourcesForLevel(1).then(() => { if (audioAllowed) startMusicForLevel(1); });
+        }
 
         instance.state.level          = 1;
         instance.state.score          = 0;

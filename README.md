@@ -1,4 +1,4 @@
-# Ida Breuer & Odo 1XL
+# Ida & Odo 1XL
 
 Ein 2D-Arcade-Spiel im Browser — gebaut mit Vanilla JavaScript, HTML5 Canvas und Web Audio API. Keine Build-Tools, keine Abhängigkeiten.
 
@@ -106,6 +106,43 @@ GET  /events  → holt alle gesammelten Events seit letztem Poll (Liste wird gel
 ```
 
 Ein externes Programm (z. B. auf macOS/iOS) schickt Joy-Con-Events per HTTP an den Server; das Spiel pollt `/events` und übersetzt sie in Spielsteuerung.
+
+---
+
+## Unterstützte Sprachen
+
+Die Sprache wird automatisch aus dem Browser erkannt. Manuell überschreibbar per URL-Parameter: `?lang=XX`
+
+| Kürzel | Sprache | Eigenname |
+|--------|---------|-----------|
+| `de` | Deutsch | Deutsch |
+| `en` | Englisch | English |
+| `fr` | Französisch | Français |
+| `it` | Italienisch | Italiano |
+| `es` | Spanisch | Español |
+| `pt` | Portugiesisch | Português |
+| `ro` | Rumänisch | Română |
+| `nl` | Niederländisch | Nederlands |
+| `pl` | Polnisch | Polski |
+| `hr` | Kroatisch / Serbisch / Bosnisch | Hrvatski |
+| `ru` | Russisch | Русский |
+| `tr` | Türkisch | Türkçe |
+| `sw` | Swahili | Kiswahili |
+| `hi` | Hindi | हिन्दी |
+| `bn` | Bengalisch | বাংলা |
+| `id` | Indonesisch | Bahasa Indonesia |
+| `vi` | Vietnamesisch | Tiếng Việt |
+| `zh` | Chinesisch | 中文 |
+| `ja` | Japanisch | 日本語 |
+| `ko` | Koreanisch | 한국어 |
+| `th` | Thailändisch | ภาษาไทย |
+| `ar` | Arabisch *(RTL)* | العربية |
+| `he` | Hebräisch *(RTL)* | עברית |
+| `ur` | Urdu *(RTL)* | اردو |
+| `fa` | Persisch / Farsi *(RTL)* | فارسی |
+| `ae` | Altägyptisch 𓂀 *(Easter Egg)* | 𓃭𓏏𓀀 |
+
+**26 Sprachen** — RTL-Layouts (Arabisch, Hebräisch, Urdu, Farsi) werden automatisch erkannt und gespiegelt.
 
 ---
 

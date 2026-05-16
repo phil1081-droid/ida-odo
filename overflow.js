@@ -114,11 +114,13 @@ class OverflowManager {
      * Am Ende der Animation: letztes Frame in den richtigen Slot zeichnen.
      * slotId kommt von reserveSlot().
      */
-    commitPuddle(platschFrames, slotId) {
+    commitPuddle(platschFrames, slotId, freezeFrameIdx) {
         if (!platschFrames || !platschFrames.length) return;
         if (slotId === undefined || slotId < 0) return;
 
-        const lastFrame = platschFrames[platschFrames.length - 1];
+        const frameIdx = (freezeFrameIdx !== undefined && freezeFrameIdx >= 0)
+            ? freezeFrameIdx : platschFrames.length - 1;
+        const lastFrame = platschFrames[frameIdx];
         const scale = DESIGN_W / lastFrame.width;
         const drawW = DESIGN_W;
         const drawH = Math.round(lastFrame.height * scale);
@@ -170,7 +172,7 @@ class OverflowManager {
         const mctx = mc.getContext('2d');
         mctx.clearRect(0, 0, mc.width, mc.height);
 
-        const PUDDLE_BOTTOM_PX = 644;
+        const PUDDLE_BOTTOM_PX = 614;
         for (let i = 0; i < this.puddleStack.length; i++) {
             const item = this.puddleStack[i];
             if (!item || !item.canvas) continue;

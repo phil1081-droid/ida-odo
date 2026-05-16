@@ -67,9 +67,9 @@ function nextAnalog(scale) {
     return val;
 }
 
-function af(freq) { return freq * (1 + nextAnalog(0.014)); }  // ±1.4 % Tonhöhe
-function at(time) { return time * (1 + nextAnalog(0.022)); }  // ±2.2 % Länge
-function ag(gain) { return gain * (1 + nextAnalog(0.025)); }  // ±2.5 % Lautstärke
+function af(freq) { return freq * (1 + nextAnalog(0.18)); }  // ±18 % Tonhöhe
+function at(time) { return time * (1 + nextAnalog(0.22)); }  // ±22 % Länge
+function ag(gain) { return gain * (1 + nextAnalog(0.28)); }  // ±28 % Lautstärke
 
 /* ================================================================ */
 
@@ -502,7 +502,7 @@ function playMegaPlatsch() {
     tremGain.gain.value = ag(0.55);
 
     const gain = ctxA.createGain();
-    gain.gain.setValueAtTime(ag(0.55 * SFX_VOLUME), now);
+    gain.gain.setValueAtTime(ag(0.40 * SFX_VOLUME), now);
     gain.gain.exponentialRampToValueAtTime(0.0001, now + totalDur);
 
     trem.connect(tremGain).connect(gain.gain);

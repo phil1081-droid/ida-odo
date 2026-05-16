@@ -29,6 +29,7 @@ class Lump extends FallingEntity {
         this._soundPlayed = false;
         this._platschEndY = null;
         this._slotId = -1;  // Slot-ID vom OverflowManager
+        this._freezeFrameIdx = -1;  // zufällig gewählter Stop-Frame
 
         // Animation
         this.frames = opts.frames || [];
@@ -60,6 +61,7 @@ class Lump extends FallingEntity {
                 this._soundPlayed = false;
                 this._platschEndY = null;
                 this._slotId = -1;
+                this._freezeFrameIdx = -1;
                 state.activeBlinkLumpId = null;
             }
             return true;
@@ -74,10 +76,17 @@ class Lump extends FallingEntity {
 
             // ~24 FPS = 42ms pro Frame
             const MS_PER_FRAME = 42;
+
+            // Zufälligen Stop-Frame einmalig festlegen (letzte 6 Frames zur Auswahl)
+            if (this._freezeFrameIdx < 0) {
+                const n = instance.platschFrames.length;
+                this._freezeFrameIdx = n - 1 - Math.floor(Math.random() * Math.min(15, n));
+            }
+
             this.platschTimer += dt;
             this.platschFrameIdx = Math.min(
                 Math.floor(this.platschTimer / MS_PER_FRAME),
-                instance.platschFrames.length - 1
+                this._freezeFrameIdx
             );
 
             // Sound + Hochrücken beim Aufprall: Frame ~50 = Bollen trifft den Boden
@@ -91,12 +100,12 @@ class Lump extends FallingEntity {
                 this._slotId = instance.overflow.reserveSlot(instance.platschFrames);
             }
 
-            // Letztes Frame 300ms halten, dann Pfütze final committen
-            const lastFrameHoldMs = (instance.platschFrames.length - 1) * MS_PER_FRAME + 300;
+            // Stop-Frame 300ms halten, dann Pfütze final committen
+            const lastFrameHoldMs = this._freezeFrameIdx * MS_PER_FRAME + 300;
 
             if (!this.megaTriggered && this.platschTimer >= lastFrameHoldMs) {
                 this.megaTriggered = true;
-                instance.overflow.commitPuddle(instance.platschFrames, this._slotId);
+                instance.overflow.commitPuddle(instance.platschFrames, this._slotId, this._freezeFrameIdx);
                 this.dead = true;
                 return false;
             }
@@ -228,7 +237,7 @@ function _platschDrawRect(instance) {
     const drawW = DESIGN_W;
     const scale = drawW / firstFrame.width;
     const drawH = firstFrame.height * scale;
-    const PUDDLE_BOTTOM_PX = 644;
+    const PUDDLE_BOTTOM_PX = 614;
     const drawY = WORLD_H - PUDDLE_BOTTOM_PX * scale;
     return { drawX: 0, drawY, drawW, drawH };
 }
@@ -301,6 +310,12 @@ function updateLumps(instance, dt) {
         }
     }
     lumps.length = write;
+
+    // Safety: activeBlinkLumpId clearen wenn der Lump nicht mehr existiert
+    const bid = instance.state.activeBlinkLumpId;
+    if (bid !== null && !lumps.some(l => l.id === bid)) {
+        instance.state.activeBlinkLumpId = null;
+    }
 
     for (let i = 0; i < _lumpTransfer.length; i++) {
         const lump = _lumpTransfer[i];

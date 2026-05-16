@@ -35,5 +35,9 @@ Write-Host "  -> locales/"
 scp @sshArgs -r "$local\locales" "${server}:${remote}/"
 scp @sshArgs "$local\locales\.htaccess" "${server}:${remote}/locales/.htaccess"
 
+# 3) Berechtigungen auf dem Server korrigieren
+Write-Host "  -> chmod..."
+ssh @sshArgs $server "chmod 755 ~/idaodo/locales && chmod 644 ~/idaodo/locales/*"
+
 Write-Host ""
 Write-Host "Fertig!" -ForegroundColor Green
