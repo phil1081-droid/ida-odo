@@ -158,9 +158,6 @@ class Odo extends FallingEntity {
             let write = 0;
             let collectedCount = 0;
 
-            const nowFrame = performance.now();
-            if (!gameCtx.__odoLastCollectFrame) gameCtx.__odoLastCollectFrame = 0;
-
             for (let i = 0; i < world.length; i++) {
                 const b = world[i];
 
@@ -183,11 +180,7 @@ class Odo extends FallingEntity {
                 if (dist < PICK_RADIUS) {
                     b.collected = true;
                     b._collectedBy = 'odo';
-
-                    if (gameCtx.__odoLastCollectFrame !== Math.floor(nowFrame)) {
-                        gameCtx.state.score++;
-                        if (typeof gameCtx.playCollect === "function") gameCtx.playCollect();
-                    }
+                    gameCtx.state.score++;
                     collectedCount++;
                 } else {
                     world[write++] = b;
@@ -195,7 +188,9 @@ class Odo extends FallingEntity {
             }
 
             world.length = write;
-            gameCtx.__odoLastCollectFrame = Math.floor(nowFrame);
+            if (collectedCount > 0 && typeof gameCtx.playCollect === "function") {
+                gameCtx.playCollect();
+            }
             return true;
         }
 

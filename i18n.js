@@ -33,6 +33,7 @@ function _detectLang() {
     if (nav.startsWith("ko")) return "ko";
     if (nav.startsWith("id")) return "id";
     if (nav.startsWith("he")) return "he";
+    // "ae" (Altägyptisch) ist ein Easter Egg — nur via ?lang=ae erreichbar, kein Browser meldet "ae"
     if (nav.startsWith("hi")) return "hi";
     if (nav.startsWith("ur")) return "ur";
     if (nav.startsWith("bn")) return "bn";

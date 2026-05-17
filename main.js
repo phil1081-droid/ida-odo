@@ -601,6 +601,7 @@ async function tryAutoStartForInstance(instance) {
     preloadIdaIce(instance);
     preloadIdaPresent(instance);
     loader.loadResourcesForLevel(1);
+    for (let i = 2; i <= 5; i++) loader.loadMusicForLevel(i);
 
     await waitForSprites();
     assignSpritesToInstance(instance);
@@ -626,6 +627,7 @@ async function tryAutoStartForInstance(instance) {
         if (started) return;
         started = true;
 
+        loader.unlockAllMusic();
         ensureAudioContext();
         audioAllowed = true;
         if (loader.getCurrentResources().music) {

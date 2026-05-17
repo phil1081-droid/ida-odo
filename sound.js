@@ -23,6 +23,7 @@ const WAVESHAPER_TANH_HARD = (() => {
 })();
 
 // ===== Music =====
+let bgMusic = null;
 let musicStarted = false;
 let musicPaused = true;
 let audioAllowed = false;

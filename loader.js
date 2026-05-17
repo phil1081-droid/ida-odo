@@ -127,6 +127,22 @@ class LevelLoader {
 
     getCurrent() { return this.getCurrentResources(); }
     setLevel(level) { this.currentLevel = level; }
+
+    // iOS Safari: alle gecachten Audio-Elemente in einem User-Gesture kurz play/pause,
+    // damit der Browser sie später ohne Gesture-Anforderung abspielen darf.
+    unlockAllMusic() {
+        for (const audio of this.musicCache.values()) {
+            try {
+                const p = audio.play();
+                if (p && typeof p.then === 'function') {
+                    p.then(() => { audio.pause(); audio.currentTime = 0; }).catch(() => {});
+                } else {
+                    audio.pause();
+                    audio.currentTime = 0;
+                }
+            } catch {}
+        }
+    }
 }
 
 window.LevelLoader = LevelLoader;

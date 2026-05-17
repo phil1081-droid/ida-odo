@@ -240,7 +240,11 @@ function togglePause() {
 ─────────────────────────────────────────────────────────── */
 (function () {
     const blockedKeys = new Set(["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"," ","Spacebar","PageUp","PageDown","Home","End"]);
-    window.addEventListener("keydown", e => { if (blockedKeys.has(e.key)) e.preventDefault(); }, { passive: false });
+    window.addEventListener("keydown", e => {
+        const tag = document.activeElement?.tagName;
+        if (tag === "INPUT" || tag === "TEXTAREA") return;
+        if (blockedKeys.has(e.key)) e.preventDefault();
+    }, { passive: false });
 })();
 
 /* ───────────────────────────────────────────────────────────
