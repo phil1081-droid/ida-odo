@@ -18,8 +18,9 @@ let frameEl;
 let overlay;
 let startButton;
 
-let paused        = false;
-let gameInstances = [];
+let paused                = false;
+let levelTransitionActive = false;
+let gameInstances         = [];
 
 const res = loader.getCurrentResources();
 bgMusic = res.music;
@@ -483,7 +484,6 @@ function checkLevelUp(instance) {
     instance.state.fallSpeedMultiplier *= LEVEL_SPEED_FACTOR;
     bpmFactor *= 1.06;
 
-    // Level-Up Flash
     triggerFlash(instance, "rgba(255,255,180,0.6)", 350);
 
     loader.setLevel(instance.state.level);
@@ -491,6 +491,14 @@ function checkLevelUp(instance) {
         if (res.bg) instance.state.backgroundImage = res.bg;
         startMusicForLevel(instance.state.level);
     });
+
+    // Ab Level 5: Motivator-Pause mit Werbung
+    if (instance.state.level >= 5 && typeof adManager !== 'undefined') {
+        levelTransitionActive = true;
+        adManager.showLevelTransition(instance.state.level, () => {
+            levelTransitionActive = false;
+        });
+    }
 }
 
 /* =======================================================
@@ -504,7 +512,7 @@ const logic = {
         const inputState = instance.input.poll(instance.colorMode === "red" ? 1 : 0);
 
         if (inputState.pause) togglePause(instance);
-        if (paused)           return;
+        if (paused || levelTransitionActive) return;
         if (state.gameOver)   return;
 
         if (inputState.hit) {
@@ -623,9 +631,16 @@ async function tryAutoStartForInstance(instance) {
     }
 
     let started = false;
+    let _startKeyListener = null;
     const startNow = async () => {
         if (started) return;
+        // Nicht starten solange GDPR-Dialog offen ist
+        if (document.getElementById('_gdpr-overlay')) return;
         started = true;
+        if (_startKeyListener) {
+            window.removeEventListener('keydown', _startKeyListener);
+            _startKeyListener = null;
+        }
 
         loader.unlockAllMusic();
         ensureAudioContext();
@@ -656,6 +671,9 @@ async function tryAutoStartForInstance(instance) {
 
         instance.startAnim.stop();
         overlayEl.style.display = "none";
+        const startAdBanner = document.getElementById('start-ad-banner');
+        if (startAdBanner) startAdBanner.hidden = true;
+        if (typeof adManager !== 'undefined') adManager.hideBanner('start-ad-banner');
         instance.state.gameStarted  = true;
         instance.state.gameStartTime = performance.now();
         cacheInstanceSize(instance);
@@ -683,10 +701,8 @@ async function tryAutoStartForInstance(instance) {
 
     startButtonEl.addEventListener("click",   startNow, { once: true });
     overlayEl.addEventListener("pointerdown", startNow, { once: true });
-    window.addEventListener("keydown", function onKey() {
-        window.removeEventListener("keydown", onKey);
-        startNow();
-    });
+    _startKeyListener = () => startNow();
+    window.addEventListener("keydown", _startKeyListener);
 }
 
 /* =======================================================
@@ -710,3 +726,79 @@ window.addEventListener("resize", () => {
 // so set it directly here to avoid the unstyled flash.
 frameEl = document.getElementById('gameFrame');
 scaleFrame();
+
+// Pause-Continue-Button verdrahten + GDPR-Flow starten
+document.addEventListener('DOMContentLoaded', () => {
+    const pauseContinueBtn = document.getElementById('pause-continue-btn');
+    if (pauseContinueBtn) pauseContinueBtn.addEventListener('click', () => { if (paused) togglePause(); });
+
+    const afterConsent = consent => {
+        if (typeof adManager !== 'undefined') adManager.onConsent(consent === 'granted');
+    };
+
+    if (typeof gdprManager !== 'undefined') {
+        gdprManager.showIfNeeded(afterConsent);
+    } else {
+        // gdprManager nicht verfügbar: Ads direkt initialisieren
+        if (typeof adManager !== 'undefined') adManager.onConsent(true);
+    }
+});
+
+/* =======================================================
+   App-Lifecycle (Capacitor)
+   – Hintergrund: Spiel + Musik stumm pausieren
+   – Vordergrund: automatisch weiter (wenn BG-Pause)
+   – Back-Button (Android): Pause statt Exit
+======================================================= */
+
+function _silentPause() {
+    if (paused) return;
+    paused = true;
+    if (typeof bgMusic !== 'undefined' && bgMusic) { bgMusic.pause(); musicPaused = true; }
+    for (const btn of document.getElementsByClassName('pause-btn')) btn.textContent = '▶️';
+    if (typeof adManager !== 'undefined') adManager.cancelLevelTransition?.();
+}
+
+function _silentResume() {
+    if (!paused) return;
+    paused = false;
+    for (const btn of document.getElementsByClassName('pause-btn')) btn.textContent = '⏸';
+    if (typeof bgMusic !== 'undefined' && bgMusic &&
+        typeof audioAllowed !== 'undefined' && audioAllowed) {
+        bgMusic.play()
+            .then(() => { musicPaused = false; musicStarted = true; })
+            .catch(() => {});
+    }
+}
+
+(function () {
+    const CapApp = window.Capacitor?.Plugins?.App;
+    if (!CapApp) return;
+
+    let _bgPaused = false;
+
+    CapApp.addListener('appStateChange', ({ isActive }) => {
+        const anyRunning = gameInstances.some(i => i.state?.gameStarted && !i.state?.gameOver);
+        if (!isActive) {
+            if (!paused && anyRunning) {
+                _bgPaused = true;
+                _silentPause();
+            }
+        } else {
+            if (_bgPaused && paused) {
+                _bgPaused = false;
+                _silentResume();
+            }
+        }
+    });
+
+    CapApp.addListener('backButton', () => {
+        const anyRunning = gameInstances.some(i => i.state?.gameStarted && !i.state?.gameOver);
+        if (!paused && anyRunning) {
+            togglePause();
+        } else if (!anyRunning) {
+            CapApp.exitApp();
+        }
+        // wenn paused: nichts tun — User nutzt Pause-Overlay zum Fortfahren
+    });
+})();

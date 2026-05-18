@@ -1,8 +1,11 @@
 class InputManager {
     constructor() {
+        this._ac = new AbortController();
         this._bind();
         this.reset();
     }
+
+    destroy() { this._ac.abort(); }
 
     reset() {
         this.left  = [false, false];
@@ -70,28 +73,32 @@ class InputManager {
             this._bindButton("scoopBtn2", () => this._scoopDownHandler(1), () => this._scoopUpHandler(1));
         }
 
+        const sig = { signal: this._ac.signal };
         const pauseBtns = document.getElementsByClassName("pause-btn");
         for (let pauseBtn of pauseBtns) {
-            pauseBtn.addEventListener("click", togglePause);
+            pauseBtn.addEventListener("click", togglePause, sig);
         }
 
-        window.addEventListener("keydown", e => this._onKeyDown(e));
-        window.addEventListener("keyup",   e => this._onKeyUp(e));
-        window.addEventListener("blur",    () => this._onBlur());
-        document.addEventListener("visibilitychange", () => { if (document.hidden) this._onBlur(); });
+        window.addEventListener("keydown", e => this._onKeyDown(e), sig);
+        window.addEventListener("keyup",   e => this._onKeyUp(e), sig);
+        window.addEventListener("blur",    () => this._onBlur(), sig);
+        document.addEventListener("visibilitychange", () => { if (document.hidden) this._onBlur(); }, sig);
     }
 
     _bindButton(id, down, up) {
         const el = document.getElementById(id);
         if (!el) return;
+        const sig = this._ac.signal;
         const d = e => { e.preventDefault(); down(); };
         const u = e => { e.preventDefault(); up(); };
-        el.addEventListener("pointerdown",  d);
-        el.addEventListener("pointerup",    u);
-        el.addEventListener("pointercancel", u);
-        el.addEventListener("mouseleave",   u);
-        el.addEventListener("touchstart",   d, { passive: false });
-        el.addEventListener("touchend",     u, { passive: false });
+        el.addEventListener("pointerdown",   d, { signal: sig });
+        el.addEventListener("pointerup",     u, { signal: sig });
+        el.addEventListener("pointercancel", u, { signal: sig });
+        // mouseleave entfernt: auf Android kann es bei minimaler Fingerbewegung
+        // fälschlicherweise feuern und Long-Press (Magnet) in Short-Press (Boost) umwandeln.
+        // pointercancel + pointerup mit implizitem Capture decken denselben Fall ab.
+        el.addEventListener("touchstart",    d, { signal: sig, passive: false });
+        el.addEventListener("touchend",      u, { signal: sig, passive: false });
     }
 
     /* ───────────────────────────────
@@ -221,14 +228,21 @@ window.handleIdaHit = handleIdaHit;
    togglePause — gehört zum Input-System
 ─────────────────────────────────────────────────────────── */
 function togglePause() {
+    // Kein Pause wenn alle Instanzen Game-Over haben
+    if (typeof gameInstances !== 'undefined' && gameInstances.length &&
+        gameInstances.every(i => i.state?.gameOver)) return;
     paused = !paused;
     const pauseBtns = document.getElementsByClassName("pause-btn");
     for (let pauseBtn of pauseBtns) {
         pauseBtn.textContent = paused ? "▶️" : "⏸";
     }
     if (paused) {
+        // Level-Transition abbrechen bevor Pause-Overlay eingeblendet wird (kein Overlay-Stack)
+        if (typeof adManager !== 'undefined') adManager.cancelLevelTransition?.();
         if (bgMusic) { bgMusic.pause(); musicPaused = true; }
+        if (typeof adManager !== 'undefined') adManager.showPauseAd();
     } else {
+        if (typeof adManager !== 'undefined') adManager.hidePauseAd();
         if (bgMusic && audioAllowed) {
             bgMusic.play().then(() => { musicPaused = false; musicStarted = true; }).catch(() => {});
         }

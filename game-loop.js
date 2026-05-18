@@ -43,11 +43,13 @@ class GameLoop {
 
 function scaleFrame() {
     if (!frameEl) return;
-    const sab   = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sab')) || 0;
-    const avail = window.innerHeight - sab;
+    const cs    = getComputedStyle(document.documentElement);
+    const sab   = parseFloat(cs.getPropertyValue('--sab')) || 0;
+    const sat   = parseFloat(cs.getPropertyValue('--sat')) || 0;
+    const avail = window.innerHeight - sab - sat;
     const scale = Math.min(avail / DESIGN_H, window.innerWidth / DESIGN_W);
     const left  = Math.round((window.innerWidth - DESIGN_W * scale) / 2);
-    const top   = Math.round((avail - DESIGN_H * scale) / 2);
+    const top   = Math.round(sat + (avail - DESIGN_H * scale) / 2);
     frameEl.style.transform       = `scale(${scale})`;
     frameEl.style.transformOrigin = "top left";
     frameEl.style.position        = "absolute";
@@ -57,8 +59,9 @@ function scaleFrame() {
 
 function scaleFrameMulti(instance) {
     if (!instance.frameEl) return;
+    const sat   = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sat')) || 0;
     const vw    = window.innerWidth / 2;
-    const scale = Math.min(window.innerHeight / DESIGN_H, vw / DESIGN_W);
+    const scale = Math.min((window.innerHeight - sat) / DESIGN_H, vw / DESIGN_W);
     const top   = Math.round((window.innerHeight - DESIGN_H * scale) / 2);
     const left  = instance.suffix === '1'
         ? Math.round((vw - DESIGN_W * scale) / 2)

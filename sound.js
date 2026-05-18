@@ -107,6 +107,7 @@ function startMusicForLevel(level) {
     musicStarted = false;
 
     if (!audioAllowed) return;
+    if (!bgMusic.paused) return; // bereits spielend (z.B. zweite Instanz im Mehrspielermodus)
 
     try {
         bgMusic.loop   = true;
@@ -124,6 +125,11 @@ function ensureAudioContext() {
     try {
         const Ctx = window.AudioContext || window.webkitAudioContext;
         if (!Ctx) { console.error("AudioContext nicht unterstützt!"); return null; }
+
+        // Closed context can't be resumed — create a fresh one
+        if (window.audioCtx && window.audioCtx.state === 'closed') {
+            window.audioCtx = null;
+        }
 
         if (window.audioCtx instanceof Ctx) {
             if (window.audioCtx.state === "suspended") window.audioCtx.resume().catch(() => {});
@@ -649,6 +655,19 @@ window._audioSelftest = function() {
     osc.start(); osc.stop(ctx.currentTime + at(0.2));
     console.log("SFX Test ausgeführt");
 };
+
+/* ── Schutz vor AudioContext-Fehlern auf Mobile ──────── */
+// Wraps all directly-called sound functions so a crashed AudioContext
+// (e.g. after iOS audio session interruption) never throws uncaught.
+;[
+    'playCollect', 'playOdoCollect', 'playDropSound', 'playBoostSound',
+    'playMagnetSound', 'playHitSound', 'playBulldozerSweep',
+    'playMegaPlatschSound', 'playGameOverJingle'
+].forEach(name => {
+    const orig = window[name];
+    if (typeof orig !== 'function') return;
+    window[name] = function() { try { orig.apply(this, arguments); } catch(e) { console.warn(name + ':', e); } };
+});
 
 /* ── Analog-Diagnose (Konsole) ── */
 window._analogTest = function(n = 12) {

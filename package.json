@@ -1,0 +1,23 @@
+{
+  "name": "ida-odo",
+  "version": "1.0.0",
+  "description": "Ida & Odo – HTML5 Canvas Game",
+  "scripts": {
+    "build": "node build.js",
+    "sync": "npm run build && npx cap sync",
+    "icons": "npx capacitor-assets generate",
+    "open:android": "npx cap open android",
+    "open:ios": "npx cap open ios"
+  },
+  "dependencies": {
+    "@capacitor-community/admob": "latest",
+    "@capacitor/android": "latest",
+    "@capacitor/core": "latest",
+    "@capacitor/ios": "latest",
+    "@revenuecat/purchases-capacitor": "latest"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
+    "@capacitor/cli": "latest"
+  }
+}

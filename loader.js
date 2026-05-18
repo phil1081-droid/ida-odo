@@ -406,7 +406,11 @@ let platschFrames  = [];
 let platschFrameW  = 390;
 let platschFrameH  = 844;
 
+let _spriteLoadingStarted = false;
+
 function initSpriteLoading() {
+    if (_spriteLoadingStarted) return;
+    _spriteLoadingStarted = true;
     loadMultiFrameImages("odo-fall_sprites.png", 13, null, (frames, frameW, frameH) => {
         SpritePool.odo.fall.yellow = frames;
         SpritePool.odo.fall.red    = frames.map(f => recolorYellowToRed(f));
