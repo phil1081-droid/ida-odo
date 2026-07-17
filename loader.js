@@ -130,18 +130,24 @@ class LevelLoader {
 
     // iOS Safari: alle gecachten Audio-Elemente in einem User-Gesture kurz play/pause,
     // damit der Browser sie später ohne Gesture-Anforderung abspielen darf.
+    // Gibt eine Promise zurück — erst wenn alle Tracks gepaused sind, ist der Unlock done.
+    // (Ohne await würden alle Tracks gleichzeitig spielen bis die async Pauses feuern.)
     unlockAllMusic() {
+        const promises = [];
         for (const audio of this.musicCache.values()) {
             try {
                 const p = audio.play();
                 if (p && typeof p.then === 'function') {
-                    p.then(() => { audio.pause(); audio.currentTime = 0; }).catch(() => {});
+                    promises.push(
+                        p.then(() => { audio.pause(); audio.currentTime = 0; }).catch(() => {})
+                    );
                 } else {
                     audio.pause();
                     audio.currentTime = 0;
                 }
             } catch {}
         }
+        return Promise.all(promises);
     }
 }
 

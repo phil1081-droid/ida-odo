@@ -642,7 +642,9 @@ async function tryAutoStartForInstance(instance) {
             _startKeyListener = null;
         }
 
-        loader.unlockAllMusic();
+        // Warten bis alle Tracks gepaused sind, damit kein iOS-Race entsteht
+        // (unlockAllMusic startet alle Tracks kurz — erst danach sauber Track 1 starten)
+        await loader.unlockAllMusic();
         ensureAudioContext();
         audioAllowed = true;
         if (loader.getCurrentResources().music) {
