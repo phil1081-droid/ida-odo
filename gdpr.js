@@ -38,7 +38,7 @@
 
         _render(onDone) {
             const title  = (typeof t === 'function') ? t('gdprTitle')  : 'Privacy Settings';
-            const text   = (typeof t === 'function') ? t('gdprText')   : 'We use AdMob for ads and RevenueCat for purchases.';
+            const text   = (typeof t === 'function') ? t('gdprText')   : 'This version shows no ads and sends no data to a server.';
             const accept = (typeof t === 'function') ? t('gdprAccept') : 'Accept & Play';
             const deny   = (typeof t === 'function') ? t('gdprDeny')   : 'Decline';
             const policy = (typeof t === 'function') ? t('gdprPolicy') : 'Privacy Policy';

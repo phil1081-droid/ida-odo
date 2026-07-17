@@ -76,7 +76,7 @@
 
     // GDPR Consent
     gdprTitle:  "Privacy Settings",
-    gdprText:   "We use Google AdMob to show ads and RevenueCat for in-app purchases. Device data may be processed. Your highscore name is stored voluntarily on our server. By tapping \"Accept\" you agree to this. You can withdraw consent at any time in the app settings.",
+    gdprText:   "This version shows no ads and sends no data to a server. Your highscore name is stored only locally on this device. You can change your decision at any time in the settings.",
     gdprAccept: "Accept & Play",
     gdprDeny:   "Decline",
     gdprPolicy: "Privacy Policy"
