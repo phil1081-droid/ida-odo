@@ -9,6 +9,9 @@ class Handler(SimpleHTTPRequestHandler):
         self.send_header('Access-Control-Allow-Origin', '*')
         self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
         self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+        # Lokaler Dev-Server: nie cachen, sonst laufen nach Code-Änderungen
+        # alte und neue JS-Dateien gemischt (siehe "Ida fehlt"-Bug).
+        self.send_header('Cache-Control', 'no-store')
         super().end_headers()
 
     def do_OPTIONS(self):

@@ -30,39 +30,6 @@
             <button id="pauseBtn" class="pause-btn">⏸</button>
             <img id="startPoster" src="start_007.png" alt="">
 
-            <!-- ── Pause-Overlay ─────────────────────────── -->
-            <div id="pause-overlay" hidden>
-                <div id="pause-box">
-                    <div class="pause-title" data-i18n="pauseTitle">⏸</div>
-                    <!-- AdSense-Banner für Web: ins div einfügen -->
-                    <div id="pause-ad-banner" class="ad-banner-slot" hidden></div>
-                    <button class="ad-free-btn" id="pause-noad-btn" data-i18n="adFreeBtn" hidden>✨</button>
-                    <button class="restore-btn"  id="pause-restore-btn" data-i18n="adFreeRestore" hidden></button>
-                    <button id="pause-continue-btn" class="pause-continue" data-i18n="pauseContinue">▶</button>
-                </div>
-            </div>
-
-            <!-- ── Level-Transition — untere Banner-Leiste (ab Level 5) ── -->
-            <div id="level-transition" hidden>
-                <div id="lt-box">
-                    <!-- Ad-Banner oben in der Leiste -->
-                    <div id="lt-ad-banner" class="ad-banner-slot" hidden></div>
-                    <!-- Infozeile: Level + Text | Countdown + Weiter -->
-                    <div id="lt-row">
-                        <div id="lt-left">
-                            <div id="lt-level"></div>
-                            <div id="lt-text"></div>
-                        </div>
-                        <div id="lt-right">
-                            <div id="lt-countdown"></div>
-                            <button id="lt-continue-btn" class="lt-continue-btn" data-i18n="ltContinue">▶</button>
-                        </div>
-                    </div>
-                    <!-- "Werbung entfernen" als schmale Zeile ganz unten -->
-                    <button class="ad-free-btn" id="lt-noad-btn" data-i18n="adFreeBtn" hidden>✨</button>
-                </div>
-            </div>
-
         </div>
 
         <div id="startOverlay" role="dialog" aria-modal="true">
@@ -72,9 +39,6 @@
                 <p id="startHint"><span data-i18n="hint1"></span><br><span data-i18n="hint2"></span></p>
             </div>
         </div>
-
-        <!-- Start-Banner: fixed am unteren Viewport-Rand, sofort sichtbar -->
-        <div id="start-ad-banner" class="ad-banner-slot start-banner"></div>
 
         <!-- Landscape-Hinweis (CSS zeigt/versteckt via @media orientation) -->
         <div id="landscape-hint" aria-live="polite">
@@ -122,8 +86,6 @@
         <script src="odo.js"></script>
         <script src="input-manager.js"></script>
         <script src="game-loop.js"></script>
-        <script src="gdpr.js"></script>
-        <script src="ad-manager.js"></script>
         <script src="highscore.js"></script>
         <script src="main.js"></script>
     </body>

@@ -237,12 +237,8 @@ function togglePause() {
         pauseBtn.textContent = paused ? "▶️" : "⏸";
     }
     if (paused) {
-        // Level-Transition abbrechen bevor Pause-Overlay eingeblendet wird (kein Overlay-Stack)
-        if (typeof adManager !== 'undefined') adManager.cancelLevelTransition?.();
         if (bgMusic) { bgMusic.pause(); musicPaused = true; }
-        if (typeof adManager !== 'undefined') adManager.showPauseAd();
     } else {
-        if (typeof adManager !== 'undefined') adManager.hidePauseAd();
         if (bgMusic && audioAllowed) {
             bgMusic.play().then(() => { musicPaused = false; musicStarted = true; }).catch(() => {});
         }

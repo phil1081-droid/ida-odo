@@ -229,14 +229,12 @@ function _buildOverlayDOM() {
                 <button id="hs-submit-btn">${t("hsSubmit")}</button>
             </div>
             <div id="hs-saved-note"></div>
-            <div id="hs-ad-banner" class="ad-banner-slot" hidden></div>
             <table id="hs-table">
                 <thead><tr>
                     <th>#</th><th>Name</th><th>${t("hsColPoints")}</th>
                 </tr></thead>
                 <tbody id="hs-tbody"></tbody>
             </table>
-            <button class="ad-free-btn" id="hs-noad-btn" hidden>${t("adFreeBtn")}</button>
             <button id="hs-restart-btn">${t("hsRestart")}</button>
         </div>
     `;
@@ -342,22 +340,12 @@ function showHighscoreOverlay(score, delayMs = 3500) {
     submitBtn.addEventListener("click", doSubmit);
     nameInput.addEventListener("keydown", e => { if (e.key === "Enter") doSubmit(); });
 
-    // Neustart — werbefreie Version direkt, sonst Rewarded Video
-    restartBtn.addEventListener("click", () => {
-        if (typeof adManager !== 'undefined') {
-            adManager.showRewarded(
-                () => {},                      // onReward (hier nicht genutzt)
-                () => window.location.reload() // onClose: immer neu laden
-            );
-        } else {
-            window.location.reload();
-        }
-    });
+    // Neustart
+    restartBtn.addEventListener("click", () => window.location.reload());
 
-    // Verzögert einblenden + Werbung initialisieren
+    // Verzögert einblenden
     setTimeout(() => {
         overlay.classList.add("hs-visible");
-        if (typeof adManager !== 'undefined') adManager.initHighscoreAds();
         if (rank) {
             setTimeout(() => nameInput.focus(), 400);
         }
