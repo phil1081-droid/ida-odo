@@ -71,8 +71,7 @@ ida-odo/
 │
 ├── bg_001.jpg … bg_020.jpg     # Hintergrundbilder (je ein Level)
 ├── music_001.mp3 … music_005.mp3  # Musik (ein Track pro 4 Level)
-├── *_sprites.png               # Sprite-Sheets für alle Figuren & Effekte
-└── intro.mp4                   # Intro-Video
+└── *_sprites.png               # Sprite-Sheets für alle Figuren & Effekte
 ```
 
 ---
