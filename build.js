@@ -15,7 +15,7 @@ const INCLUDE_EXTS = new Set([
 ]);
 
 const EXCLUDE_DIRS = new Set([
-    'node_modules', 'ios', 'android', 'www', '.git', 'archive', '.claude', 'resources'
+    'node_modules', 'ios', 'android', 'www', '.git', 'archive', '.claude', 'resources', 'screenshots'
 ]);
 
 const EXCLUDE_FILES = new Set([
