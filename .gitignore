@@ -1,4 +1,6 @@
 node_modules/
 www/
+screenshots/
+*.zip
 .DS_Store
 *.local
