@@ -710,6 +710,25 @@ window.addEventListener("resize", () => {
     gameInstances.forEach(cacheInstanceSize);
 });
 
+/* =======================================================
+   Landscape-Hinweis: echte Geräte-Ausrichtung statt iFrame-Größe.
+   In Embeds (z.B. itch.io) spiegelt die iFrame-Höhe nicht das Gerät wider —
+   screen.orientation/screen.width/height sind dagegen die physischen
+   Geräte-Werte, auch aus einem gecrossorigin-iFrame heraus lesbar.
+======================================================= */
+function _updateLandscapeHint() {
+    const hintEl = document.getElementById('landscape-hint');
+    if (!hintEl) return;
+    const isLandscape = screen.orientation
+        ? screen.orientation.type.startsWith('landscape')
+        : Math.abs(window.orientation) === 90;
+    const isPhoneSized = Math.min(screen.width, screen.height) <= 500;
+    hintEl.classList.toggle('show', isLandscape && isPhoneSized);
+}
+window.addEventListener('resize', _updateLandscapeHint);
+if (screen.orientation) screen.orientation.addEventListener('change', _updateLandscapeHint);
+_updateLandscapeHint();
+
 // Pre-scale immediately — frameEl isn't set via initGameInstances yet (that runs on load),
 // so set it directly here to avoid the unstyled flash.
 frameEl = document.getElementById('gameFrame');

@@ -21,9 +21,11 @@
     pointer-events: none;
 }
 
-@media screen and (orientation: landscape) and (max-height: 500px) {
-    #landscape-hint { display: flex; }
-}
+/* Sichtbarkeit wird per JS gesteuert (main.js), nicht per Media-Query:
+   In eingebetteten iFrames (z.B. itch.io) spiegelt die eigene iFrame-Höhe
+   nicht die tatsächliche Geräte-Ausrichtung wider — ein kleines, breites
+   Embed würde die Media-Query sonst fälschlich auslösen. */
+#landscape-hint.show { display: flex; }
 
 /* Verhindert, dass CSS display-Regeln das HTML hidden-Attribut überschreiben */
 [hidden] { display: none !important; }
